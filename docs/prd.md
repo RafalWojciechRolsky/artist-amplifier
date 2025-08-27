@@ -12,7 +12,7 @@ Ten dokument bazuje na zatwierdzonym "Project Brief: Artist Amplifier MVP (BMAD)
 
 ### **1.2. Cele**
 
-- **Dla Użytkownika:** Dostarczenie natychmiastowej wartości w postaci profesjonalnego opisu prasowego przy minimalnym wysiłku.
+- **Dla Użytkownika:** Dostarczenie natychmiastowej wartości w postaci profesjonalnego opisu prasowego utworu przy minimalnym wysiłku.
 - **Dla Projektu:** Zebranie danych i opinii od rzeczywistych użytkowników w celu podjęcia decyzji o dalszym rozwoju produktu.
 
 ### **1.3. Dziennik Zmian (Change Log)**
@@ -29,15 +29,15 @@ Wszystkie wymagania funkcjonalne dla MVP zostały ujęte w ramach jednego Epiku,
 
 ### **2.2. Wymagania Niefunkcjonalne (Non-Functional Requirements)**
 
-- **NFR1 (Wydajność):** UI pozostaje responsywne w trakcie wywołań zewnętrznych (analiza audio, generowanie tekstu). Interfejs prezentuje czytelny status etapu (np. "Analiza audio...", "Generowanie...") bez wymogu procentowego paska postępu; dostępność szczegółowego postępu zależy od dostawców. Brak twardego limitu czasu po stronie UI; użytkownik może przerwać oczekiwanie (zatrzymanie pollingu) w dowolnym momencie.
-- **NFR2 (Prywatność):** Aplikacja nie może przechowywać żadnych danych wprowadzonych przez użytkownika (plików audio, tekstów) po zakończeniu sesji. Wszystkie dane muszą być przetwarzane w pamięci lub tymczasowo i usuwane natychmiast po przetworzeniu.
+- **NFR1 (Wydajność - MVP):** UI prezentuje prosty status "Przetwarzanie..." podczas wywołań zewnętrznych. Brak skomplikowanych mechanizmów anulowania - jeśli użytkownik zamknie stronę, to jego wybór.
+- **NFR2 (Prywatność):** Aplikacja nie może przechowywać żadnych danych wprowadzonych przez użytkownika (plików audio, tekstów) po zakończeniu sesji. Wszystkie dane muszą być przetwarzane w pamięci i usuwane natychmiast po przetworzeniu.
 - **NFR3 (Użyteczność):** Interfejs musi być w pełni intuicyjny i nie wymagać żadnych instrukcji ani samouczków. Cały proces powinien być możliwy do ukończenia na jednym ekranie (single page).
 - **NFR4 (Kompatybilność):** System przesyłania plików musi akceptować formaty .mp3 i .wav. Maksymalny rozmiar pliku to 50MB.
-- **NFR5 (Dostępność i Mobile):** Interfejs jest responsywny (mobile‑first) i spełnia podstawowe wymagania a11y (obsługa fokusu, role ARIA, kontrast, czytelne komunikaty błędów).
+- **NFR5 (Dostępność i Mobile - MVP):** Interfejs jest responsywny z jednym breakpointem (768px) i spełnia podstawowe wymagania dostępności (labels, kontrast, keyboard access).
 
-## **3\. Epik 1 (MVP): Od Utworu do Profesjonalnego Opisu w 5 Minut**
+## **3\. Epik 1 (MVP): Od Utworu do Profesjonalnego Opisu Utworu w 5 Minut**
 
-**Cel Epiku:** Dostarczenie użytkownikowi realnej, namacalnej wartości – gotowego opisu prasowego – w jak najkrótszym czasie i przy minimalnym wysiłku, w ramach jednej sesji.
+**Cel Epiku:** Dostarczenie użytkownikowi realnej, namacalnej wartości – gotowego opisu prasowego utworu – w jak najkrótszym czasie i przy minimalnym wysiłku, w ramach jednej sesji.
 
 ### **Historyjki Użytkownika (User Stories)**
 
@@ -89,6 +89,7 @@ Wszystkie wymagania funkcjonalne dla MVP zostały ujęte w ramach jednego Epiku,
   2. Kliknięcie "Kopiuj do schowka" kopiuje całą zawartość pola tekstowego do schowka systemowego.
   3. Po skopiowaniu, użytkownik widzi wizualne potwierdzenie (np. krótki komunikat "Skopiowano!").
   4. Kliknięcie "Pobierz jako .txt" inicjuje pobranie pliku tekstowego o nazwie nazwa_artysty_opis.txt, zawierającego treść z pola tekstowego.
+  5. Kliknięcie "Reset" natychmiast czyści wszystkie dane w UI (pola formularza, wybrany plik, wygenerowany opis) oraz zapis w sessionStorage i przywraca aplikację do stanu początkowego (Krok 1).
 
 ## **4\. Następne Kroki (Handoff zgodny z BMAD)**
 

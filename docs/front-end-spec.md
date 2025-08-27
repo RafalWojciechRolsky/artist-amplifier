@@ -6,7 +6,7 @@ Ten dokument definiuje cele doświadczenia użytkownika, architekturę informacj
 
 ## Kontekst i zakres
 
-- Wizja produktu: Lekki, jednostronicowy (SPA) mechanizm, który generuje profesjonalny opis prasowy na podstawie minimalnych danych artysty i pojedynczego pliku audio (zob. `docs/brief.md`).
+- Wizja produktu: Lekki, jednostronicowy (SPA) mechanizm, który generuje profesjonalny opis prasowy utworu na podstawie danych artysty (nazwa + opis) i pojedynczego pliku audio (zob. `docs/brief.md`).
 - Cel MVP: Szybka weryfikacja potrzeb rynku i zbieranie informacji zwrotnych od realnych użytkowników (zob. `docs/prd.md`).
 - Główna persona: Niezależny muzyk lub mały zespół oczekujący szybkości, prostoty i natychmiastowych efektów bez onboardingu czy rejestracji.
 
@@ -15,58 +15,52 @@ Ten dokument definiuje cele doświadczenia użytkownika, architekturę informacj
 ### Docelowe persony użytkowników
 
 - Niezależny muzyk (główna) — szybkość, brak onboardingu, często na urządzeniach mobilnych.
-- Przedstawiciel małego zespołu (drugorzędna) — podobne ograniczenia, konteksty mobilne.
-- Asystent/Kierownik PR (trzeciorzędna) — potrzebuje szybkiego, spójnego wyniku; edycja przed użyciem.
 
-### Cele użyteczności
+### Cele użyteczności (MVP)
 
 - Czas do pierwszego opisu ≤ 5 minut.
-- Kroki ≤ 4, jeden ekran (single page).
-- „Generuj opis” aktywne tylko, gdy wymagane dane są poprawne.
-- Ponowna próba po błędzie w ≤ 2 działaniach.
-- Mobile-first od 320px; cele dotyku ≥ 44px.
-- Podstawy WCAG 2.1 AA: kontrast ≥ 4.5:1, poprawne etykiety, kolejność focusu, role ARIA.
+- Prosty przepływ: dane → plik → generuj → wynik.
+- Jeden ekran (single page).
+- Podstawowa dostępność: labels, kontrast, keyboard access.
 
-### Zasady projektowe
+### Zasady projektowe (MVP)
 
-1.  Jasność ponad spryt — minimalne UI, jawne etykiety/stany.
-2.  Stopniowe odkrywanie — tylko to, co potrzebne na danym etapie.
-3.  Natychmiastowa informacja zwrotna — stan przycisku/tekstu statusu odzwierciedla fazę.
-4.  Domyślnie dostępne — focus, ARIA, kontrast, wsparcie klawiatury.
-5.  Edytowalny wynik — wygenerowany tekst można edytować przed kopiowaniem/pobraniem.
-6.  Prostota jednego ekranu — wszystkie zadania na jednej stronie.
-7.  Sterowanie przez stan — akcje aktywują się tylko po spełnieniu wymagań.
+1. **Prostota ponad wszystko** — minimalne UI, tylko niezbędne elementy.
+2. **Jeden ekran** — wszystkie zadania na jednej stronie bez skomplikowanej nawigacji.
+3. **Podstawowe stany** — gotowe/przetwarzanie/sukces/błąd.
+4. **Edytowalny wynik** — wygenerowany tekst można edytować.
+5. **Funkcjonalność nad estetyką** — działający MVP bez ozdobników.
 
 ## Architektura informacji (IA) {#ia}
 
 ### Mapa strony / Inwentaryzacja ekranów
 
 ```mermaid
-{{ ... }}
 graph TD
-    A[Single Page: Artist Amplifier (Stepper 1–4)] --> S1[1. Dane Artysty]
-    A --> S2[2. Prześlij Utwór]
-    A --> S3[3. Generuj i Edytuj]
-    A --> S4[4. Skopiuj / Pobierz]
+  A[Single Page - Artist Amplifier Stepper 1-4] --> S1[1 Dane artysty]
+  A --> S2[2 Przeslij utwor]
+  A --> S3[3 Generuj i Edytuj]
+  A --> S4[4 Skopiuj lub Pobierz]
 
-    %% Gating
-    S1 -->|Dane poprawne| S2
-    S2 -->|Plik zaakceptowany| S3
-    S3 -->|Wynik wygenerowany| S4
+  S1 -->|Dane poprawne| S2
+  S2 -->|Plik zaakceptowany| S3
+  S3 -->|Wynik wygenerowany| S4
 
-    %% States
-    S3 --> ST1[Status: Analiza audio...]
-    S3 --> ST2[Status: Generowanie...]
-    S3 --> ST3A[Błąd analizy]
-    S3 --> ST3B[Błąd generowania]
-    S3 --> ST4[Wynik: Edytowalny opis]
+  S4 --> R[Reset]
+  R --> S1
+
+  S3 --> ST1[Analiza audio]
+  S3 --> ST2[Generowanie]
+  S3 --> ST3A[Blad analizy]
+  S3 --> ST3B[Blad generowania]
+  S3 --> ST4[Wynik edytowalny opis]
+
 ```
 
-### Struktura nawigacji
+### Struktura nawigacji (MVP)
 
-- Nawigacja główna: Stepper (przyklejony u góry) z krokami 1–4; przyszłe kroki wyłączone do czasu spełnienia wymagań wstępnych.
-- Nawigacja pomocnicza: Kotwice w obrębie strony do każdego kroku (deep linking).
-- Okruszki (breadcrumb): Nie dotyczy (poziom pojedynczy).
+- Prosty progress indicator pokazujący aktualny krok (1-4).
+- Brak skomplikowanej nawigacji - naturalny scroll na jednej stronie.
 
 ## Przepływy użytkownika {#flows}
 
@@ -80,9 +74,10 @@ graph TD
 
 ```mermaid
 graph TD
-  S1[1. Dane Artysty (poprawne?)] -->|tak| S2[2. Prześlij Utwór (zaakceptowany?)]
-  S2 -->|tak| S3[3. Generuj i Edytuj (wynik?)]
-  S3 -->|tak| S4[4. Skopiuj / Pobierz]
+  S1[1 Dane Artysty - poprawne] -->|tak| S2[2 Przeslij Utwor - zaakceptowany]
+  S2 -->|tak| S3[3 Generuj i Edytuj - wynik]
+  S3 -->|tak| S4[4 Skopiuj / Pobierz]
+
 ```
 
 ### Przepływ 1: Wprowadzanie Danych Artysty {#flow-1}
@@ -94,8 +89,8 @@ graph TD
 
 ```mermaid
 graph TD
-  A[Start] --> B[Wpisz Nazwę (wymagane)]
-  B --> C[Wpisz Opis (wymagane, 50–1000 znaków)]
+  A[Start] --> B[Wpisz Nazwę - wymagane]
+  B --> C[Wpisz Opis - wymagane, 50–1000 znaków]
   C --> D{Walidacja}
   D -- OK --> E[Zapis w stanie sesji]
   D -- Błąd --> C1[Pokaż komunikat i fokus na polu]
@@ -124,34 +119,29 @@ graph TD
 - **Przypadki krawędziowe i błędy:** Zbyt duży/nieobsługiwany format → komunikat i ponowny wybór; anulowanie wyboru → pozostaje poprzedni stan; „Zmień plik” dostępne.
 - **Notatki:** PRD 1.2 (AC 1–7).
 
-### Przepływ 3: Generowanie i Edycja Opisu {#flow-3}
+### Przepływ 3: Generowanie i Edycja Opisu {#flow-3} (MVP)
 
 - **Warunki wstępne:** Flow 1 + 2 poprawne.
 - **Cel użytkownika:** Wygenerować edytowalny opis.
-- **Punkty wejścia:** Klik „Generuj opis” (aktywny po spełnieniu prereq).
-- **Kryteria sukcesu:** Statusy „Analiza…” → „Generowanie…”; wynik w textarea; obsługa błędów; możliwość anulowania.
+- **Punkty wejścia:** Klik „Generuj opis".
 
 ```mermaid
 graph TD
-  A[Klik: Generuj opis] --> B[Analiza audio...]
-  B -->|Anuluj| R1[Przerwano → Stan: Gotowe do generowania]
-  B -->|Sukces| C[Generowanie...]
-  B -->|Błąd analizy| B1[Pokaż błąd, pozwól zmienić plik lub ponowić]
-  C -->|Anuluj| R2[Przerwano → Stan: Gotowe do generowania]
-  C -->|Sukces| D[Wynik w edytowalnym polu]
-  C -->|Błąd generowania| C1[Pokaż błąd, pozwól ponowić Generowanie]
-  D --> E[Użytkownik edytuje treść]
+  A[Klik: Generuj opis] --> B[Przetwarzanie...]
+  B -->|Sukces| C[Wynik w edytowalnym polu]
+  B -->|Błąd| D[Komunikat błędu + przycisk Spróbuj ponownie]
+  D --> A
 ```
 
-- **Przypadki krawędziowe i błędy:** Timeout/dostawca → czytelny błąd i opcja ponowienia; po anulowaniu zachowaj dane i zaakceptowany plik; ponowienie tylko nieudanego etapu; ostrzeżenie przy próbie zamknięcia/odświeżenia w trakcie „Analiza…”/„Generowanie…”; użytkownik może najpierw wybrać „Anuluj”, aby opuścić.
+- **Uproszczona obsługa błędów:** Jeden komunikat "Coś poszło nie tak. Spróbuj ponownie." + przycisk ponowienia.
 - **Notatki:** PRD 1.3 (AC 1–7).
 
 ### Przepływ 4: Wykorzystanie Gotowego Opisu {#flow-4}
 
 - **Cel użytkownika:** Skopiować lub pobrać opis.
-- **Punkty wejścia:** Pod textarea: „Kopiuj do schowka”, „Pobierz .txt”.
-- **Kryteria sukcesu:** Pełna zawartość skopiowana/pobrana; potwierdzenie akcji; zsanityzowana nazwa pliku.
-- **Stan po:** Toast „Skopiowano!”; plik `nazwa_artysty_opis.txt` pobrany.
+- **Punkty wejścia:** Pod textarea: „Kopiuj do schowka”, „Pobierz .txt”, „Reset”.
+- **Kryteria sukcesu:** Pełna zawartość skopiowana/pobrana; potwierdzenie akcji; zsanityzowana nazwa pliku; „Reset” czyści sessionStorage (`aa:v1:*`) i lokalny stan UI.
+- **Stan po:** Toast „Skopiowano!”; plik `nazwa_artysty_opis.txt` pobrany; po „Reset” — UI przywrócony do Kroku 1 (pola/plik/wynik wyczyszczone).
 
 ```mermaid
 graph TD
@@ -162,18 +152,18 @@ graph TD
 ```
 
 - **Przypadki krawędziowe i błędy:** Brak uprawnień do schowka → komunikat i instrukcja ręczna; sanitizacja nazwy pliku.
-- **Notatki:** PRD 1.4 (AC 1–3).
+- **Notatki:** PRD 1.4 (AC 1–5).
 
 ### Śledzenie AC → PRD {#traceability}
 
 - Mapowanie przepływów w tej specyfikacji na Story w `docs/prd.md`:
 
-| Flow w spec | PRD Story | Zakres |
-| :-- | :-- | :-- |
-| Flow 1 — Wprowadzanie Danych Artysty | Story 1.1 | Formularz, walidacja, zapis w sesji |
-| Flow 2 — Przesyłanie Utworu | Story 1.2 | Wybór/zmiana pliku, walidacja, stany analizy |
-| Flow 3 — Generowanie i Edycja | Story 1.3 | Analiza → Generowanie, edycja, anulowanie, ponowienie |
-| Flow 4 — Wykorzystanie Gotowego Opisu | Story 1.4 | Kopiuj, Pobierz .txt, toast sukcesu |
+| Flow w spec                           | PRD Story | Zakres                                                |
+| :------------------------------------ | :-------- | :---------------------------------------------------- |
+| Flow 1 — Wprowadzanie Danych Artysty  | Story 1.1 | Formularz, walidacja, zapis w sesji                   |
+| Flow 2 — Przesyłanie Utworu           | Story 1.2 | Wybór/zmiana pliku, walidacja, stany analizy          |
+| Flow 3 — Generowanie i Edycja         | Story 1.3 | Analiza → Generowanie, edycja, anulowanie, ponowienie |
+| Flow 4 — Wykorzystanie Gotowego Opisu | Story 1.4 | Kopiuj, Pobierz .txt, toast sukcesu                   |
 
 ## Makiety (tekstowe) {#wireframes}
 
@@ -188,7 +178,7 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
   - Krok 2: Wybór pliku (.mp3/.wav ≤ 50MB), nazwa pliku, „Zmień plik”, walidacja format/rozmiar
   - Krok 3: „Generuj opis” ze stanami: „Analiza audio…” → „Generowanie…”, przycisk Anuluj/Stop
   - Krok 3 wynik: Edytowalne textarea (duże pole), aria-live dla statusów
-  - Krok 4: „Kopiuj do schowka”, „Pobierz .txt” + toast „Skopiowano!”
+  - Krok 4: „Kopiuj do schowka”, „Pobierz .txt”, „Reset” + toast „Skopiowano!”
 - Uwagi dotyczące interakcji:
   - Aktywacja ściśle zależna od warunków wstępnych (1→2→3→4)
   - Po błędach: fokus na polu/bieżącej akcji; ponowienie tylko nieudanego etapu
@@ -217,7 +207,7 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 #### Stany
 
 - Puste: pola formularza z hintami; brak błędów
-- Ładowanie: „Analiza…/Generowanie…” + spinner; akcje konfliktowe wyłączone
+- Ładowanie: „Analiza audio…/Generowanie…” + spinner; akcje konfliktowe wyłączone
 - Błąd: blok błędu nad właściwym obszarem; fokus na „Ponów”/polu
 
 ##### Mikro-wireframe (ASCII) — Desktop
@@ -236,11 +226,11 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 | (Obsługiwane: .mp3, .wav; ≤50MB)                                               |
 |                                                                                |
 | H2: Krok 3 — Generuj i Edytuj                                                  |
-| [Generuj opis]     Status: Analiza... / Generowanie...      [Anuluj]           |
+| [Generuj opis]     Status: Analiza audio... / Generowanie...      [Anuluj]           |
 | [ edytowalne textarea wyniku .............................................. ] |
 |                                                                                |
 | H2: Krok 4 — Skopiuj / Pobierz                                                 |
-| [Kopiuj do schowka]     [Pobierz .txt]                                         |
+| [Kopiuj do schowka]     [Pobierz .txt]     [Reset]                             |
 +----------------------------------------------------------------------------------+
 ```
 
@@ -297,27 +287,23 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 | Krok 3 — Generuj i Edytuj                     |
 | [Generuj opis]                                |
 | ── sticky pasek statusu + Anuluj ──────────── |
-| Status: Analiza...           [Anuluj]         |
+| Status: Analiza audio...           [Anuluj]         |
 | [ textarea wyniku ]                           |
 |                                              |
 | Krok 4 — Skopiuj / Pobierz                    |
-| [Kopiuj]     [Pobierz .txt]                   |
+| [Kopiuj]     [Pobierz .txt]     [Reset]       |
 +----------------------------------------------+
 ```
 
-## Dostępność (WCAG 2.1 AA) {#a11y}
+## Dostępność (MVP - Podstawowa) {#a11y}
 
-### Zasady i cele
+### Zasady i cele (MVP)
 
-- Kontrast tekstu ≥ 4.5:1; komponentów UI i stanu (np. focus, aktywny) ≥ 3:1.
-- Klawiatura: Pełna obsługa bez pułapek; logiczny porządek tab; wyraźny focus-visible.
-- Formularze: Widoczne etykiety; limity znaków i wskazówki opisane; błędy powiązane `aria-describedby`.
-- Live regions: Statusy/komunikaty przez `aria-live="polite"` lub `role="status"`; brak skoków focusu bez potrzeby.
-- Struktura: Landmarks (`header`, `main`, `footer`), semantyczne nagłówki H1–H3 zgodne z sekcjami.
-- Dotyk: Cele interakcji ≥44×44px.
-- Reflow/Zoom: 200% bez utraty funkcji; brak poziomego scrolla przy 320px.
-- Ruch: Szanuj `prefers-reduced-motion`; brak migotania/animacji istotnych dla zrozumienia.
-- Język: Atrybut `lang` (np. `pl-PL`); gotowość do i18n kopii stałych.
+- Kontrast tekstu ≥ 4.5:1.
+- Podstawowa obsługa klawiatury (Tab, Enter, Space).
+- Widoczne etykiety dla wszystkich pól formularza.
+- Podstawowe komunikaty błędów.
+- Język strony ustawiony na `pl-PL`.
 
 ### Kryteria dla każdego przepływu
 
@@ -328,13 +314,14 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
   - Pole pliku opisane (akceptowane formaty/rozmiar) w tekście, nie tylko w atrybucie accept.
   - Błędy formatu/rozmiaru ogłaszane; przycisk „Zmień plik” dostępny z klawiatury.
 - Flow 3 (Generowanie i Edycja):
-  - Statusy „Analiza…”/„Generowanie…” ogłaszane przez `aria-live`/`role="status"`.
+  - Statusy „Analiza audio…”/„Generowanie…” ogłaszane przez `aria-live`/`role="status"`.
   - „Anuluj/Stop” fokusowalny; po anulowaniu zachowaj fokus na najbliższej akcji.
   - Po błędzie: komunikat opisowy, fokus na przycisku „Ponów” lub odpowiednim polu.
   - Ochrona przed zamknięciem/odświeżeniem w trakcie operacji; ostrzeżenie z opcją anulowania.
 - Flow 4 (Kopiuj/Pobierz):
   - Nazwy dostępności dla przycisków; toast sukcesu ogłaszany (polite) i nieblokujący.
   - Nazwa pliku zsanityzowana i komunikowana w tekście.
+  - Przycisk „Reset” dostępny z klawiatury; po aktywacji czyści stan sesji i przenosi fokus do pierwszej sensownej akcji Kroku 1.
 
 ### Plan testów (ręczne + automatyczne)
 
@@ -353,7 +340,7 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 - [ ] Brak poziomego scrolla przy 320px; 200% zoom OK.
 - [ ] Kontrast spełnia progi WCAG; cele dotyku ≥44×44.
 
-## Biblioteka komponentów / System projektowy {#design-system}
+## Komponenty (MVP - Minimalne) {#components}
 
 ### Komponenty (atomy/molekuły)
 
@@ -373,7 +360,7 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
   - Kroki 1–4 ze stanami: disabled, active (aria-current=step), completed
   - Możliwość powrotu do ukończonych kroków; przyszłe kroki wyłączone do spełnienia warunków wstępnych
 - StatusBanner / Progress
-  - Pokazuje „Analiza…”, „Generowanie…”, błędy; opcjonalny spinner
+  - Pokazuje „Analiza audio…”, „Generowanie…”, błędy; opcjonalny spinner
   - A11y: role="status" lub aria-live="polite"; nieblokujące
 - Toast
   - Typy: success, error; auto‑zamykanie 3–5 s; ręczny przycisk zamknięcia
@@ -381,9 +368,16 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 - SectionHeader
   - Tytuł + opcjonalny opis; kotwice do głębokich linków
 - FormField (wrapper)
+
   - Standaryzuje etykietę, pomoc, błąd, odstępy i układ
 
+- ResetButton
+  - Akcja: przywraca UI do stanu początkowego (Krok 1); czyści sessionStorage (`aa:v1:*`)
+  - A11y: dostępny z klawiatury; po aktywacji fokus wraca do pierwszej sensownej akcji Kroku 1
+  - Test: `data-testid="reset-button"`; semantyka zdarzenia: `onReset()`
+
 ### Stany i interakcje
+
 - Traktowanie focusu: 2px kontur o wysokim kontraście; respektuje prefers-contrast
 - Zasady ładowania: wyłącz kolidujące akcje; pokaż spinner + tekst statusu
 - Zasady błędów: inline, konkretne; ścieżki odzyskiwania (ponów, zmień plik) per flow
@@ -396,15 +390,19 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 - Cienie: sm, md (niekrytyczne; respektuj reduced-motion dla animowanych cieni)
 - Typografia: Bazowa 16px; Skala 12, 14, 16, 18, 20, 24, 32; Wagi 400/600
 
-### QA / Testy
+### QA / Testy (MVP)
 
-- Viewporty: 320, 360, 390, 768, 1024; portret/pejzaż; zoom 200%
-- Scenariusze: błędy analizy/generowania, anulowanie, ponowienie, brak schowka
-- Lighthouse Mobile ≥90; brak poziomego scrolla przy 320px
+Minimalny zakres wymagany dla wydania MVP:
+
+- **Unit tests** — walidacja logiki i komponentów.
+- **Manual smoke test** — pełny flow 1→4 na mobile (≈360 px) i desktop (≥1024 px).
+
+Rozszerzone automaty (Playwright), Lighthouse i pełna matryca viewportów przeniesiono do [Future Enhancements](#future-enhancements).
 
 ### Mechanizmy dostępności
 
 {{ ... }}
+
 - Każdy element interaktywny: dostępny z klawiatury, widoczny fokus, poprawne name/role/value
 - aria-describedby łączy pomoc/błąd; aria-live lub role=status dla stanów asynchronicznych
 - Pole pliku ma jasne instrukcje dla czytników ekranu (format, rozmiar). Toasty ogłaszane grzecznie
@@ -418,14 +416,36 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 - Przycisk „Ponów” (analiza/generowanie): `data-testid="retry-analyze"` / `data-testid="retry-generate"`
 - Textarea wyniku: `data-testid="result-textarea"`
 - Przyciski „Kopiuj”/„Pobierz .txt”: `data-testid="copy-button"` / `data-testid="download-button"`
+- Przycisk „Reset”: `data-testid="reset-button"`
 - Stepper: `data-testid="stepper"`; aktywny krok z `aria-current="step"`
 
 ### Kontrakt implementacyjny (przekazanie do dev)
 
-- Zdarzenia: onGenerate, onCancel, onRetry, onCopy, onDownload, onFileChange
+- Zdarzenia: onGenerate, onCancel, onRetry, onCopy, onDownload, onFileChange, onReset
 - Semantyka zdarzeń: onCancel może wystąpić w fazie 'analyze' lub 'generate'; callback onCancel({ phase: 'analyze' | 'generate' })
 - Powierzchnia walidacji: zwraca { valid: boolean, errors: {field: message} }
 - i18n: wszystkie teksty widoczne dla użytkownika przez słownik messages; język strony ustawiony na pl-PL
+
+### Persistencja stanu (MVP) {#state-persistence}
+
+- Cel: Spełnić PRD (`docs/prd.md`, Story 1.3, AC 7): „Stan interfejsu jest utrzymany w obrębie bieżącej sesji (odświeżenie nie resetuje postępu)”.
+- Mechanizm: sessionStorage (po stronie przeglądarki) — dane przetrwają odświeżenie, znikają po zamknięciu karty/okna. Brak localStorage/IndexedDB w MVP.
+- Przestrzeń nazw kluczy i wersjonowanie: prefix `aa:v1:`.
+  - `aa:v1:step` → number | '1' | '2' | '3' | '4' (aktywny krok / gating)
+  - `aa:v1:artist` → JSON { artistName: string, artistDescription: string }
+  - `aa:v1:analysis` → JSON (subset wyników potrzebnych w UI), np. { durationSec, bpm?, musicalKey?, energy? }
+  - `aa:v1:description` → JSON { language: 'pl'|'en', text: string }
+- Czego NIE zapisujemy:
+  - Pliku audio ani jego binariów (wymóg prywatności/NFR). Dopuszczalne meta (nazwa, typ, rozmiar) trzymane tylko w pamięci runtime lub w `aa:v1:fileMeta` (opcjonalnie), bez zawartości.
+- Zasady lifecycle:
+  - Zapisywać po każdej udanej walidacji Kroku 1, akceptacji pliku w Kroku 2 i sukcesie generowania w Kroku 3.
+  - Przy starcie aplikacji: odczytać klucze; ustawić krok/gating tak, by odtworzyć postęp. Brak automatycznego wznowienia requestów sieciowych.
+  - Przycisk „Reset” (MVP, wymagany): usuwa `aa:v1:*` i resetuje UI do Kroku 1 (czyści pola formularza, meta pliku i wygenerowany wynik).
+  - Migracje: zmiana schematu → nowy prefix (np. `aa:v2:`); stary namespace można ignorować.
+- Unload‑protection:
+  - Podczas trwających operacji (Analiza/Generowanie) rejestrujemy ostrzeżenie `beforeunload`. Po zakończeniu operacji event jest zdejmowany.
+- A11y:
+  - Odtwarzanie stanu po refresh nie przenosi fokusu gwałtownie; fokus na pierwszej sensownej akcji w aktywnym kroku. Statusy ogłaszane przez `aria-live`/`role="status"`.
 
 ## Stany (pusty/ładowanie/błąd) {#states}
 
@@ -471,6 +491,7 @@ Przykłady copy:
   - Tytuł: „Nie można skopiować do schowka.”
   - Treść: pokaż instrukcję ręczną (zaznacz + Ctrl/Cmd+C).
 - Timeout/dostawca: jasny komunikat + bezpieczne ponowienie tylko dla nieudanego etapu.
+- W stanie błędu dostępny „Reset” — szybki powrót do Kroku 1 (czyści sessionStorage `aa:v1:*` i lokalny stan UI).
 
 ### A11y dla stanów
 
@@ -495,14 +516,50 @@ Przykłady copy:
 - Głos: pomocny, nastawiony na szybki efekt; etykiety akcji w trybie rozkazującym (np. „Generuj opis”).
 - Język UI: PL (domyślnie), gotowość do i18n; zwięzłe komunikaty błędów.
 
-### System kolorów (role, nie finalne heksy)
+### System kolorów
 
-- Primary Accent: do przycisków głównych i aktywnych stanów.
-- Surface / Surface-Elevated: tła sekcji i podniesionych kart.
-- Text Primary/Secondary: kontrast odpowiednio wysoki/średni.
-- Feedback: Success, Warning, Error; Border do konturów i rozdzielenia.
-- Kontrast: tekst ≥ 4.5:1; elementy interaktywne/stany ≥ 3:1.
-- Nie stosować jasnego tekstu na akcencie bez zachowania kontrastu.
+#### Paleta podstawowa
+
+| Rola | Kolor | Hex | Zastosowanie |
+| --- | --- | --- | --- |
+| Primary Accent | Fioletowy | `#6A3DE8` | Przyciski główne, aktywne stany, elementy interaktywne |
+| Primary Accent (hover) | Ciemny fiolet | `#5429D0` | Stan hover dla przycisków primary |
+| Secondary Accent | Jasny fiolet | `#9B7AFF` | Akcenty drugorzędne, ikony, podkreślenia |
+| Surface | Biały | `#FFFFFF` | Tło główne aplikacji |
+| Surface-Elevated | Jasny szary | `#F5F5F7` | Tła sekcji, karty, pola formularzy |
+| Text Primary | Granatowy | `#1A1A2E` | Główny tekst, nagłówki, etykiety |
+| Text Secondary | Ciemny szary | `#4A4A57` | Tekst pomocniczy, opisy, placeholdery |
+| Border | Szary | `#E1E1E6` | Obramowania, separatory |
+
+#### Kolory funkcjonalne
+
+| Rola | Kolor | Hex | Zastosowanie |
+| --- | --- | --- | --- |
+| Success | Zielony | `#22C55E` | Komunikaty sukcesu, potwierdzenia |
+| Warning | Pomarańczowy | `#F59E0B` | Ostrzeżenia, komunikaty informacyjne |
+| Error | Czerwony | `#EF4444` | Błędy, komunikaty krytyczne |
+| Focus | Niebieski | `#3B82F6` | Obramowanie elementów z fokusem (a11y) |
+
+#### Warianty przycisków
+
+| Wariant | Tło | Tekst | Border | Hover |
+| --- | --- | --- | --- | --- |
+| Primary | `#6A3DE8` | `#FFFFFF` | brak | `#5429D0` |
+| Secondary | `#FFFFFF` | `#1A1A2E` | `#E1E1E6` | `#F5F5F7` |
+| Ghost | transparent | `#4A4A57` | brak | `#F5F5F7` |
+
+#### Zasady kontrastu
+
+- Tekst na tle: kontrast ≥ 4.5:1 (WCAG AA)
+- Elementy interaktywne/stany: kontrast ≥ 3:1
+- Nie stosować jasnego tekstu na akcencie bez zachowania kontrastu
+- Kolory funkcjonalne (Success, Warning, Error) używane z ciemnym tekstem dla zachowania kontrastu
+
+#### Dostępność kolorów
+
+- Paleta zweryfikowana pod kątem dostępności dla osób z daltonizmem
+- Informacje nie są przekazywane wyłącznie za pomocą koloru (zawsze z tekstem/ikoną)
+- Tryb wysokiego kontrastu: obsługa `prefers-contrast: more` z ciemniejszymi kolorami tekstu i wyraźniejszymi obramowaniami
 
 ### Typografia
 
@@ -537,23 +594,18 @@ Przykłady copy:
 - Rób: „Generuj opis” (konkretna akcja), wyraźny focus, kontrast ≥ 4.5:1.
 - Nie rób: „Kliknij tutaj”, ściana tekstu bez nagłówków, ikony bez etykiet.
 
-## Strategia responsywności {#responsiveness}
+## Strategia responsywności (MVP) {#responsiveness}
 
-### Progi (mobile-first)
+### Progi (uproszczone)
 
-- Bazowy: 320–767px (główny cel)
-- Tablet: 768–1023px (opcjonalnie układ warstwowy → dwukolumnowy tam, gdzie ma sens)
-- Desktop: ≥1024px (komfortowa szerokość treści ~960px)
-- Szeroki: ≥1280px (maksymalna szerokość treści, wyśrodkowanie; bez dodatkowych kolumn)
+- Mobile: ≤768px (główny cel)
+- Desktop: >768px (szerokość treści ~960px)
 
-### Zachowanie układu
+### Zachowanie układu (MVP)
 
-- Stepper: skompaktowany na mobile (etykiety mogą się skracać); pełne etykiety na desktopie.
-- Formularze: jedna kolumna na mobile; ciaśniejsze odstępy; etykiety nad polami.
-- Status/Anuluj: sticky pasek na mobile podczas długich operacji; na desktopie inline.
-- Akcje (Kopiuj/Pobierz): widoczne bez nachodzenia na textarea; zawijają się w razie potrzeby.
-- Textarea: rośnie pionowo do bezpiecznej wysokości widoku; następnie wewnętrzny scroll; zachowuje fokus.
-- Nazwy plików: skracane w środku wielokropkiem; pełna wartość przez title i tekst tylko dla SR.
+- Formularze: jedna kolumna, etykiety nad polami.
+- Prosty progress indicator zamiast skomplikowanego steppera.
+- Podstawowy responsive layout bez sticky elementów.
 
 ### Gęstość i dotyk
 
@@ -579,33 +631,13 @@ Przykłady copy:
 - [ ] Działają: Kopiuj/Pobierz na małych ekranach bez kolizji z textarea.
 - [ ] Teksty i nazwy plików poprawnie się skracają; pełna treść dostępna SR.
 
-## Animacje i mikrointerakcje {#animation}
+## Animacje (MVP - Minimalne) {#animation}
 
-### Zasady
+### Zasady (MVP)
 
-- Subtelność, informacyjność, brak przeszkadzania. Animacje nie blokują interakcji.
-- Szanuj `prefers-reduced-motion`; oferuj alternatywę statyczną.
-
-### Skala ruchu (czasy i krzywe)
-
-- Czasy: 120ms (hover/focus), 180ms (press/release), 240ms (toast/status), 300ms (odsłonięcie sekcji)
-- Krzywe łagodzenia: standard `ease-out` na wejście, `ease-in` na wyjście; systemowe preferencje respektowane
-
-### Przypadki użycia
-
-- Button
-  - Hover: lekka zmiana tła/cienia (120ms)
-  - Active: wciśnięcie (elevation->0, 180ms)
-  - Loading: spinner obok labelu + `aria-busy` (bez skoków layoutu)
-- Stepper
-  - Zmiana kroku: podświetlenie bieżącego, płynne przejście underline (180ms); brak przesuwania treści
-- Status/Postęp
-  - Pojawienie komunikatu „Analiza…/Generowanie…” fade-in (200–240ms), spinner liniowy/okrągły
-  - Błędy: reveal bloku błędu (200ms), bez drastycznych skoków
-- Toast
-  - Wejście z dołu (translateY 8px + fade-in 240ms), auto-dismiss 3–5s, focus niekradziony
-- Walidacja formularza
-  - Scroll do pierwszego niepoprawnego pola (smooth, 240ms), krótki highlight obramowania (1.5s)
+- Brak animacji w MVP - prostota i szybkość implementacji.
+- Podstawowe hover states na przyciskach.
+- Szanuj `prefers-reduced-motion`.
 
 ### Dostępność i ograniczony ruch
 
@@ -683,8 +715,8 @@ Przykłady copy:
 - Single-page ze stepperem 1–4; gating jak w `#flows`
 - Krok 1: wymagane pola, limity, `aria-describedby`, licznik znaków
 - Krok 2: `.mp3/.wav`, ≤50MB, błąd/ponów, „Zmień plik”
-- Krok 3: „Analiza…”/„Generowanie…”, `onCancel({ phase })`, ponowienie per etap, unload protection
-- Krok 4: Kopiuj/Pobierz, sanityzacja nazwy pliku, toasty sukcesu
+- Krok 3: „Analiza audio…”/„Generowanie…”, `onCancel({ phase })`, ponowienie per etap, unload protection
+- Krok 4: Kopiuj/Pobierz/Reset, sanityzacja nazwy pliku, toasty sukcesu
 
 ### Dostępność (WCAG 2.1 AA)
 
@@ -707,15 +739,28 @@ Przykłady copy:
 
 ### Kontrakty komponentów
 
-- Zdarzenia: onGenerate, onCancel({ phase: 'analyze' | 'generate' }), onRetry, onCopy, onDownload, onFileChange
+- Zdarzenia: onGenerate, onCancel({ phase: 'analyze' | 'generate' }), onRetry, onCopy, onDownload, onFileChange, onReset
 - Walidacja: `{ valid: boolean, errors: { [field]: message } }`
 - i18n: wszystkie stringi z `messages`; `lang` ustawione na `pl-PL`
 
-### QA / Testy
+### QA / Testy (MVP)
 
-- Viewporty: 320, 360, 390, 768, 1024; portret/pejzaż; zoom 200%
-- Scenariusze: błędy analizy/generowania, anulowanie, ponowienie, brak schowka
-- Lighthouse Mobile ≥90; brak poziomego scrolla przy 320px
+Minimalny zakres wymagany dla wydania MVP:
+
+- **Unit tests** — walidacja logiki i komponentów.
+- **Manual smoke test** — pełny flow 1→4 na mobile (≈360 px) i desktop (≥1024 px).
+
+Rozszerzone automaty (Playwright), Lighthouse i pełna matryca viewportów przeniesiono do [Future Enhancements](#future-enhancements).
+
+## Future Enhancements {#future-enhancements}
+
+The following improvements are **out of MVP scope** and can be addressed later:
+
+- Automated E2E tests (Playwright) covering full user flows & visual regression integrated with CI.
+- Continuous Web Vitals monitoring (LCP, INP, CLS) reporting to analytics endpoint.
+- Advanced Lighthouse performance gating in CI.
+- Edge or middleware rate-limiting backed by persistent storage for better resilience.
+- Extended observability (OpenTelemetry tracing/logging) and configurable retry/backoff for external API calls.
 
 ### Otwarte pozycje
 
@@ -728,6 +773,6 @@ Przykłady copy:
 
 ### Dziennik zmian
 
-| Data       | Wersja  | Opis                                   | Autor  |
-| :--------- | :------ | :------------------------------------- | :----- |
-| 2025-08-26 | v0.1.0  | Pierwsza wersja specyfikacji front‑end | Rafał  |
+| Data       | Wersja | Opis                                   | Autor |
+| :--------- | :----- | :------------------------------------- | :---- |
+| 2025-08-26 | v0.1.0 | Pierwsza wersja specyfikacji front‑end | Rafał |

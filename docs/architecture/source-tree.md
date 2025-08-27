@@ -7,10 +7,8 @@ artist-amplifier/
 ├── src/
 │   └── app/
 │       ├── api/
-│       │   ├── audio/
-│       │   │   └── analyze/route.ts        # POST: proxy do Audio Analysis API
-│       │   └── press/
-│       │       └── generate/route.ts       # POST (non‑stream): proxy do LLM API
+│       │   └── audio/
+│       │       └── generate/route.ts       # POST: synchroniczna orkiestracja (analyze + LLM)
 │       ├── page.tsx                        # Single‑screen UI
 │       ├── layout.tsx                      # Root layout
 │       └── globals.css                     # Tailwind v4 (import @tailwindcss/postcss)
@@ -44,5 +42,5 @@ artist-amplifier/
         └── package.json
 ```
 
-Uwaga: brak trwałego storage’u i auth (MVP). Endpointy BFF ograniczone do niezbędnych `/api/audio/analyze` i `/api/press/generate` (YAGNI).
+Uwaga: brak trwałego storage’u i auth (MVP). Jeden endpoint BFF: `/api/audio/generate` (YAGNI).
 

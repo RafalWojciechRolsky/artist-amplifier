@@ -49,7 +49,7 @@ Cel: minimalny, krytyczny zestaw zasad zapobiegających typowym błędom. Dopaso
 | --- | --- | --- | --- |
 | Components | PascalCase | - | `ArtistForm.tsx` |
 | Hooks | camelCase with `use` | - | `useUpload.ts` |
-| API Routes | - | path segments | `/api/audio/analyze` |
+| API Routes | - | path segments | `/api/audio/generate` |
 | Database Tables | - | snake_case | `user_profiles` (N/A for MVP) |
 
 ## Error Response (standard)

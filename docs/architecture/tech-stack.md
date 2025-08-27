@@ -23,5 +23,5 @@ Wybrano Next.js (App Router) jako FE + minimalny BFF (Route Handlers). Poniżej 
 - Wybór: Next.js (App Router) + Route Handlers (BFF) — prosty deploy na Vercel, sekrety w env, opcja streamingu.
 - Stan: lokalny `useState/useReducer`; bez React Query/Zustand na start.
 - Node runtime: 22.18.0 (lokalnie i na Vercel).
-- YAGNI: tylko dwa endpointy BFF (`/api/audio/analyze`, `/api/press/generate`).
+- YAGNI: jeden endpoint BFF (`/api/audio/generate`).
 - Priorytet: UX i czas do wartości (NFR1–NFR3). Utrzymujemy minimalny stack i jeden kod bazowy.
