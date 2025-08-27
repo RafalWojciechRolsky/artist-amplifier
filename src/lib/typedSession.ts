@@ -3,9 +3,19 @@
 import { SESSION_KEYS } from "./constants";
 import type { ArtistFormValue } from "@/components/ArtistForm";
 
+// Minimal shape for an audio analysis result. The exact fields may vary by provider,
+// so we store a generic record with at least an id and provider for traceability.
+export type AudioAnalysisResult = {
+  id: string;
+  provider: string;
+  // Arbitrary payload returned by the analysis API
+  data: Record<string, unknown>;
+};
+
 // Define the session storage schema
 type SessionStorageSchema = {
   [SESSION_KEYS.ARTIST_FORM]: ArtistFormValue;
+  [SESSION_KEYS.ANALYSIS_RESULT]: AudioAnalysisResult;
 };
 
 // Type-safe sessionStorage wrapper
@@ -51,3 +61,11 @@ export const artistFormStorage = {
   set: (value: ArtistFormValue) => TypedSessionStorage.set(SESSION_KEYS.ARTIST_FORM, value),
   remove: () => TypedSessionStorage.remove(SESSION_KEYS.ARTIST_FORM),
 };
+
+export const analysisResultStorage = {
+  get: () => TypedSessionStorage.get(SESSION_KEYS.ANALYSIS_RESULT),
+  set: (value: AudioAnalysisResult) =>
+    TypedSessionStorage.set(SESSION_KEYS.ANALYSIS_RESULT, value),
+  remove: () => TypedSessionStorage.remove(SESSION_KEYS.ANALYSIS_RESULT),
+};
+

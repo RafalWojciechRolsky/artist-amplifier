@@ -2,6 +2,9 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from '@/app/page';
+import * as analysis from '@/lib/analysis';
+
+jest.mock('@/lib/analysis');
 import { VALIDATION_LIMITS } from '@/lib/constants';
 
 const { MIN_DESCRIPTION } = VALIDATION_LIMITS;
@@ -39,28 +42,35 @@ describe('Home integration', () => {
   });
 
   // TC7.1 Przekazanie stanu do page.tsx
-  // TC7.2 Przejścia stanów (idle -> generating)
+  // TC7.2 Przejścia stanów (idle -> analyzing)
   // Given valid data in the form
   // When the user submits the form
-  // Then the app state changes to 'generating' and the button is disabled
-  test('updates state to generating and disables button on submit', async () => {
+  // Then the app state changes to 'analyzing' and the button is disabled
+  test('updates state to analyzing and disables button on submit', async () => {
     const user = userEvent.setup();
+    // Arrange mocks: validation ok, analysis pending to keep 'analyzing' state visible
+    (analysis.validateAudioFile as jest.Mock).mockResolvedValue({ ok: true });
+    (analysis.analyzeAudio as jest.Mock).mockImplementation(() => new Promise(() => {}));
+
     render(<Home />);
 
     const nameInput = screen.getByLabelText(/nazwa artysty\/zespołu/i);
     const descInput = screen.getByLabelText(/opis artysty/i);
+    const audioInput = screen.getByLabelText(/plik utworu/i) as HTMLInputElement;
     const submitBtn = screen.getByRole('button', { name: /generuj opis/i });
 
     // Fill the form with valid data
     await user.type(nameInput, 'Test Artist');
     await user.type(descInput, 'a'.repeat(MIN_DESCRIPTION));
+    const file = new File(['aaa'], 'sample.mp3', { type: 'audio/mpeg' });
+    await user.upload(audioInput, file);
 
     // Submit the form
     await user.click(submitBtn);
 
-    // Assert that the button is now in a 'generating' state
-    const generatingBtn = await screen.findByRole('button', { name: /generowanie.../i });
-    expect(generatingBtn).toBeInTheDocument();
-    expect(generatingBtn).toBeDisabled();
+    // Assert that the button is now in an 'analyzing' state
+    const analyzingBtn = await screen.findByRole('button', { name: /analiza audio.../i });
+    expect(analyzingBtn).toBeInTheDocument();
+    expect(analyzingBtn).toBeDisabled();
   });
 });
