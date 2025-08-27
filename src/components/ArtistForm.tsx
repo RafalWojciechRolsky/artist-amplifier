@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { VALIDATION_LIMITS, UI_TEXT } from "@/lib/constants";
 
 export type ArtistFormValue = {
   artistName: string;
@@ -12,23 +13,22 @@ export type ArtistFormErrors = Partial<{
   artistDescription: string;
 }>;
 
-export const MIN_DESCRIPTION = 50;
-export const MAX_DESCRIPTION = 1000;
+const { MIN_DESCRIPTION, MAX_DESCRIPTION } = VALIDATION_LIMITS;
 
 export function validateArtistForm(value: ArtistFormValue): ArtistFormErrors {
   const errors: ArtistFormErrors = {};
 
   if (!value.artistName?.trim()) {
-    errors.artistName = "Pole 'Nazwa artysty/zespołu' jest wymagane.";
+    errors.artistName = UI_TEXT.VALIDATION_MESSAGES.ARTIST_NAME_REQUIRED;
   }
 
   const desc = value.artistDescription?.trim() ?? "";
   if (!desc) {
-    errors.artistDescription = "Pole 'Opis artysty' jest wymagane.";
+    errors.artistDescription = UI_TEXT.VALIDATION_MESSAGES.ARTIST_DESCRIPTION_REQUIRED;
   } else if (desc.length < MIN_DESCRIPTION) {
-    errors.artistDescription = `Opis musi mieć co najmniej ${MIN_DESCRIPTION} znaków.`;
+    errors.artistDescription = UI_TEXT.VALIDATION_MESSAGES.DESCRIPTION_TOO_SHORT(MIN_DESCRIPTION);
   } else if (desc.length > MAX_DESCRIPTION) {
-    errors.artistDescription = `Opis może mieć maksymalnie ${MAX_DESCRIPTION} znaków.`;
+    errors.artistDescription = UI_TEXT.VALIDATION_MESSAGES.DESCRIPTION_TOO_LONG(MAX_DESCRIPTION);
   }
 
   return errors;
@@ -84,7 +84,7 @@ export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, er
     >
       <div className="grid gap-2">
         <label htmlFor="artistName" className="font-medium">
-          Nazwa artysty/zespołu
+          {UI_TEXT.FORM_LABELS.ARTIST_NAME}
         </label>
         <input
           id="artistName"
@@ -109,7 +109,7 @@ export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, er
 
       <div className="grid gap-2">
         <label htmlFor="artistDescription" className="font-medium">
-          Opis artysty
+          {UI_TEXT.FORM_LABELS.ARTIST_DESCRIPTION}
         </label>
         <textarea
           id="artistDescription"
@@ -145,7 +145,7 @@ export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, er
           disabled={isSubmitting}
           className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? "Generowanie..." : "Generuj opis"}
+          {isSubmitting ? UI_TEXT.BUTTONS.SUBMIT_LOADING : UI_TEXT.BUTTONS.SUBMIT_IDLE}
         </button>
       </div>
     </form>

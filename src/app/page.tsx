@@ -2,7 +2,7 @@
 
 import React from 'react';
 import ArtistForm, { type ArtistFormValue } from '@/components/ArtistForm';
-import { getSession, setSession } from '@/lib/session';
+import { artistFormStorage } from '@/lib/typedSession';
 
 type AppState = {
 	status: 'idle' | 'generating' | 'readyDescription' | 'error';
@@ -13,7 +13,6 @@ type Action =
 	| { type: 'SET_FORM'; payload: ArtistFormValue }
 	| { type: 'SET_STATUS'; payload: AppState['status'] };
 
-const SESSION_KEY = 'aa:v1:artist_form';
 
 function reducer(state: AppState, action: Action): AppState {
 	switch (action.type) {
@@ -36,7 +35,7 @@ export default function Home() {
 
 	// Load form from session on first mount
 	React.useEffect(() => {
-		const saved = getSession<ArtistFormValue>(SESSION_KEY);
+		const saved = artistFormStorage.get();
 		if (saved) {
 			dispatch({ type: 'SET_FORM', payload: saved });
 		}
@@ -44,10 +43,10 @@ export default function Home() {
 
 	// Persist form to session on change
 	React.useEffect(() => {
-		setSession(SESSION_KEY, state.artistForm);
+		artistFormStorage.set(state.artistForm);
 	}, [state.artistForm]);
 
-	function handleSubmit(value: ArtistFormValue) {
+	function handleSubmit(_value: ArtistFormValue) {
 		// This would trigger an API call in a real app.
 		// For now, we just update the state machine.
 		dispatch({ type: 'SET_STATUS', payload: 'generating' });

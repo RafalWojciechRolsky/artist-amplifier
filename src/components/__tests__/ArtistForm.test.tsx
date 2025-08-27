@@ -1,7 +1,10 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import ArtistForm, { MIN_DESCRIPTION, MAX_DESCRIPTION, type ArtistFormValue } from '@/components/ArtistForm';
+import ArtistForm, { type ArtistFormValue } from '@/components/ArtistForm';
+import { VALIDATION_LIMITS } from '@/lib/constants';
+
+const { MIN_DESCRIPTION, MAX_DESCRIPTION } = VALIDATION_LIMITS;
 
 const mockOnSubmit = jest.fn();
 

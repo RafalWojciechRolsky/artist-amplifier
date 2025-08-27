@@ -2,7 +2,9 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from '@/app/page';
-import { MIN_DESCRIPTION } from '@/components/ArtistForm';
+import { VALIDATION_LIMITS } from '@/lib/constants';
+
+const { MIN_DESCRIPTION } = VALIDATION_LIMITS;
 
 // TC3.2 Odtworzenie po odświeżeniu (restore on refresh)
 // Given data previously saved in sessionStorage
