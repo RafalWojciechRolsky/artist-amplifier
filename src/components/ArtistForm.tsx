@@ -41,9 +41,11 @@ type Props = {
   isSubmitting?: boolean;
   // Optional externally provided validation errors
   errors?: ArtistFormErrors;
+  // Optional content to render after the artist fields and before the submit button
+  afterFields?: React.ReactNode;
 };
 
-export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, errors }: Props) {
+export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, errors, afterFields }: Props) {
   const [touched, setTouched] = React.useState<Record<string, boolean>>({});
 
   const localErrors = validateArtistForm(value);
@@ -138,6 +140,8 @@ export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, er
           </p>
         )}
       </div>
+
+      {afterFields}
 
       <div className="flex justify-end">
         <button
