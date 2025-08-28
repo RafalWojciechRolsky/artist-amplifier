@@ -7,6 +7,7 @@ import ArtistForm, {
 } from '@/components/ArtistForm';
 import AudioUpload from '@/components/AudioUpload';
 import TextEditor from '@/components/TextEditor';
+import ActionButtons from '@/components/ActionButtons';
 import { analyzeAudio } from '@/lib/analysis';
 import { generateDescription } from '@/lib/api/generate';
 import {
@@ -49,6 +50,8 @@ function reducer(state: AppState, action: Action): AppState {
 			return { ...state, generated: action.payload };
 		case 'SET_GENERATION_ERROR':
 			return { ...state, generationError: action.payload };
+		case 'RESET':
+			return createInitialState();
 		default:
 			return state;
 	}
@@ -56,15 +59,19 @@ function reducer(state: AppState, action: Action): AppState {
 
 const initialForm: ArtistFormValue = { artistName: '', artistDescription: '' };
 
+function createInitialState(): AppState {
+  return {
+    status: 'idle',
+    artistForm: { ...initialForm },
+    audioFile: null,
+    audioError: null,
+    generated: '',
+    generationError: null,
+  };
+}
+
 export default function Home() {
-	const [state, dispatch] = React.useReducer(reducer, {
-		status: 'idle',
-		artistForm: initialForm,
-		audioFile: null,
-		audioError: null,
-		generated: '',
-		generationError: null,
-	});
+	const [state, dispatch] = React.useReducer(reducer, createInitialState());
 	const abortRef = React.useRef<AbortController | null>(null);
 	const isFormValid =
 		Object.keys(validateArtistForm(state.artistForm)).length === 0;
@@ -91,13 +98,22 @@ export default function Home() {
 		}
 	}, []);
 
-	// Persist form to session on change
-	React.useEffect(() => {
-		artistFormStorage.set(state.artistForm);
-	}, [state.artistForm]);
+	// Persist form to session on change (avoid saving empty form after reset)
+  React.useEffect(() => {
+    const { artistName, artistDescription } = state.artistForm;
+    if (artistName || artistDescription) {
+      artistFormStorage.set(state.artistForm);
+    } else {
+      artistFormStorage.remove();
+    }
+  }, [state.artistForm]);
 
 	React.useEffect(() => {
-		generatedDescriptionStorage.set(state.generated);
+		if (state.generated && state.generated.trim() !== '') {
+      generatedDescriptionStorage.set(state.generated);
+    } else {
+      generatedDescriptionStorage.remove();
+    }
 	}, [state.generated]);
 
 	async function handleSubmit(value: ArtistFormValue) {
@@ -187,6 +203,17 @@ export default function Home() {
 		abortRef.current?.abort();
 	}
 
+	function handleReset() {
+		// Abort any in-flight requests
+		abortRef.current?.abort();
+		// Clear persisted session state
+		artistFormStorage.remove();
+		analysisResultStorage.remove();
+		generatedDescriptionStorage.remove();
+		// Reset UI state
+		dispatch({ type: 'RESET' });
+	}
+
 	return (
 		<div className='font-sans grid grid-rows-[auto_1fr_auto] items-start justify-items-center min-h-screen p-6 gap-8 sm:p-10'>
 			<header className='w-full max-w-screen-sm'>
@@ -251,6 +278,11 @@ export default function Home() {
 							}
 							placeholder='Tutaj pojawi się wygenerowany opis...'
 							ariaLabel='Edytor wygenerowanego opisu'
+						/>
+						<ActionButtons
+							artistName={state.artistForm.artistName}
+							text={state.generated}
+							onReset={handleReset}
 						/>
 						<div className='flex justify-end'>
 							<button

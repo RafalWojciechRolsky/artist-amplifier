@@ -126,4 +126,51 @@ describe('Home integration', () => {
     const finalGenerateBtn = await screen.findByRole('button', { name: /generuj opis/i });
     expect(finalGenerateBtn).toBeEnabled();
   });
+
+  test('reset clears UI state and sessionStorage', async () => {
+    const user = userEvent.setup();
+    // Arrange mocks
+    (analysis.validateAudioFile as jest.Mock).mockResolvedValue({ ok: true });
+    (analysis.analyzeAudio as jest.Mock).mockResolvedValue({
+      id: 'mock-id-2',
+      provider: 'stub',
+      data: { tempo: 110 },
+    });
+    (generate.generateDescription as jest.Mock).mockResolvedValue('Gen text');
+
+    render(<Home />);
+
+    const nameInput = screen.getByLabelText(/nazwa artysty\/zespołu/i) as HTMLInputElement;
+    const descInput = screen.getByLabelText(/opis artysty/i) as HTMLTextAreaElement;
+    const audioInput = screen.getByLabelText(/plik utworu/i) as HTMLInputElement;
+    const analyzeBtn = screen.getByRole('button', { name: /analizuj utwór/i });
+
+    await user.type(nameInput, 'Reset Artist');
+    await user.type(descInput, 'q'.repeat(60));
+    const file = new File(['x'], 'reset.mp3', { type: 'audio/mpeg' });
+    await user.upload(audioInput, file);
+    await user.click(analyzeBtn);
+
+    const generateBtn = await screen.findByRole('button', { name: /generuj opis/i });
+    await user.click(generateBtn);
+    // generation can be very fast in tests; assert editor shows the generated text
+    await screen.findByDisplayValue('Gen text');
+
+    // Reset
+    const resetBtn = screen.getByRole('button', { name: /reset/i });
+    await user.click(resetBtn);
+
+    // Assert form cleared
+    expect(nameInput.value).toBe('');
+    expect(descInput.value).toBe('');
+    expect(audioInput.value).toBe('');
+
+    // The generated section should disappear (status back to idle)
+    expect(screen.queryByText(/Wygenerowany opis/i)).not.toBeInTheDocument();
+
+    // SessionStorage cleared
+    expect(sessionStorage.getItem('aa:v1:artist_form')).toBeNull();
+    expect(sessionStorage.getItem('aa:v1:audio_analysis_result')).toBeNull();
+    expect(sessionStorage.getItem('aa:v1:generated_description')).toBeNull();
+  });
 });
