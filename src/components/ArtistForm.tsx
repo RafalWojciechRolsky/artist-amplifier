@@ -22,10 +22,10 @@ export function validateArtistForm(value: ArtistFormValue): ArtistFormErrors {
     errors.artistName = UI_TEXT.VALIDATION_MESSAGES.ARTIST_NAME_REQUIRED;
   }
 
-  const desc = value.artistDescription?.trim() ?? "";
-  if (!desc) {
+  const desc = value.artistDescription ?? "";
+  if (!desc.trim()) {
     errors.artistDescription = UI_TEXT.VALIDATION_MESSAGES.ARTIST_DESCRIPTION_REQUIRED;
-  } else if (desc.length < MIN_DESCRIPTION) {
+  } else if (desc.trim().length < MIN_DESCRIPTION) {
     errors.artistDescription = UI_TEXT.VALIDATION_MESSAGES.DESCRIPTION_TOO_SHORT(MIN_DESCRIPTION);
   } else if (desc.length > MAX_DESCRIPTION) {
     errors.artistDescription = UI_TEXT.VALIDATION_MESSAGES.DESCRIPTION_TOO_LONG(MAX_DESCRIPTION);

@@ -1,10 +1,12 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from '@/app/page';
 import * as analysis from '@/lib/analysis';
+import * as generate from '@/lib/api/generate';
 
 jest.mock('@/lib/analysis');
+jest.mock('@/lib/api/generate');
 import { VALIDATION_LIMITS } from '@/lib/constants';
 
 const { MIN_DESCRIPTION } = VALIDATION_LIMITS;
@@ -57,7 +59,7 @@ describe('Home integration', () => {
     const nameInput = screen.getByLabelText(/nazwa artysty\/zespołu/i);
     const descInput = screen.getByLabelText(/opis artysty/i);
     const audioInput = screen.getByLabelText(/plik utworu/i) as HTMLInputElement;
-    const submitBtn = screen.getByRole('button', { name: /generuj opis/i });
+    const submitBtn = screen.getByRole('button', { name: /analizuj utwór/i });
 
     // Fill the form with valid data
     await user.type(nameInput, 'Test Artist');
@@ -72,5 +74,56 @@ describe('Home integration', () => {
     const analyzingBtn = await screen.findByRole('button', { name: /analiza audio.../i });
     expect(analyzingBtn).toBeInTheDocument();
     expect(analyzingBtn).toBeDisabled();
+  });
+
+  test('generates a description after successful analysis', async () => {
+    const user = userEvent.setup();
+    // Arrange mocks
+    (analysis.validateAudioFile as jest.Mock).mockResolvedValue({ ok: true });
+    (analysis.analyzeAudio as jest.Mock).mockResolvedValue({
+      id: 'mock-id',
+      provider: 'stub',
+      data: { tempo: 130, mood: 'uplifting' },
+    });
+    (generate.generateDescription as jest.Mock).mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay
+      return 'This is a generated mock description.';
+    });
+
+    render(<Home />);
+
+    const nameInput = screen.getByLabelText(/nazwa artysty\/zespołu/i);
+    const descInput = screen.getByLabelText(/opis artysty/i);
+    const audioInput = screen.getByLabelText(/plik utworu/i);
+    const analyzeBtn = screen.getByRole('button', { name: /analizuj utwór/i });
+
+    // Act: Fill form and analyze
+    await user.type(nameInput, 'Test Artist');
+    await user.type(descInput, 'b'.repeat(MIN_DESCRIPTION));
+    const file = new File(['test'], 'test.mp3', { type: 'audio/mpeg' });
+    await user.upload(audioInput, file);
+    await user.click(analyzeBtn);
+
+    // Assert: Analysis completes and generate button appears
+    const generateBtn = await screen.findByRole('button', { name: /generuj opis/i });
+    expect(generateBtn).toBeInTheDocument();
+    expect(generateBtn).toBeEnabled();
+
+    // Act: Generate description
+    await user.click(generateBtn);
+
+    // Assert: Generating state - button text changes and is disabled
+    const generatingButton = await screen.findByRole('button', { name: /generowanie opisu.../i });
+    expect(generatingButton).toBeDisabled();
+
+    // Assert: Generation completes and text editor is updated
+    await waitFor(() => {
+      const editor = screen.getByPlaceholderText(/tutaj pojawi się wygenerowany opis.../i);
+      expect(editor).toHaveValue('This is a generated mock description.');
+    });
+
+    // Final state: generate button is enabled again
+    const finalGenerateBtn = await screen.findByRole('button', { name: /generuj opis/i });
+    expect(finalGenerateBtn).toBeEnabled();
   });
 });

@@ -4,6 +4,7 @@
 export const SESSION_KEYS = {
   ARTIST_FORM: 'aa:v1:artist_form',
   ANALYSIS_RESULT: 'aa:v1:audio_analysis_result',
+  GENERATED_DESCRIPTION: 'aa:v1:generated_description',
 } as const;
 
 // Form validation limits
@@ -36,8 +37,10 @@ export const UI_TEXT = {
     AUDIO_SIZE_INVALID: 'Plik jest zbyt duży. Maksymalny rozmiar to 50MB.',
   },
   BUTTONS: {
-    SUBMIT_IDLE: 'Generuj opis',
+    SUBMIT_IDLE: 'Analizuj utwór',
     SUBMIT_LOADING: 'Analiza audio...',
+    GENERATE_IDLE: 'Generuj opis',
+    GENERATE_LOADING: 'Generowanie opisu...',
     CANCEL: 'Anuluj',
   },
   STATUS: {
