@@ -50,7 +50,7 @@ export async function generateDescription(
   form: ArtistFormValue,
   _analysis: AudioAnalysisResult,
   file: File,
-  opts?: { signal?: AbortSignal; language?: string }
+  opts?: { signal?: AbortSignal; language?: string; template?: string }
 ): Promise<string> {
   // Build multipart form data
   const formData = new FormData();
@@ -58,17 +58,38 @@ export async function generateDescription(
   formData.append('artistName', form.artistName);
   formData.append('artistDescription', form.artistDescription);
   formData.append('language', opts?.language ?? 'pl');
+  if (opts?.template) {
+    formData.append('template', opts.template);
+  }
 
-  const res = await fetch('/api/audio/generate', {
-    method: 'POST',
-    body: formData,
-    signal: opts?.signal,
-  });
+  let res: Response;
+  try {
+    res = await fetch('/api/audio/generate', {
+      method: 'POST',
+      body: formData,
+      signal: opts?.signal,
+    });
+  } catch (e: unknown) {
+    const err = e as { name?: string; code?: string; message?: string };
+    if (
+      err?.name === 'AbortError' ||
+      err?.code === 'ABORT_ERR' ||
+      (typeof err?.message === 'string' && err.message.toLowerCase().includes('aborted'))
+    ) {
+      throw new Error('Aborted');
+    }
+    throw new Error('Problem z połączeniem sieciowym. Spróbuj ponownie.');
+  }
 
   if (!res.ok) {
-    const json = (await res.json().catch(() => null)) as GenerateApiError | null;
-    const msg = mapApiErrorToMessage(json ?? {});
-    throw new Error(msg);
+    // Attempt to parse standardized API error; fallback to status text
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const json = (await res.json().catch(() => null)) as GenerateApiError | null;
+      const msg = mapApiErrorToMessage(json ?? {});
+      throw new Error(msg);
+    }
+    throw new Error(`Błąd serwera (${res.status}). Spróbuj ponownie.`);
   }
 
   const data = (await res.json()) as GenerateSuccess;
