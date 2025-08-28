@@ -1,5 +1,5 @@
-version: 4.40.0
-installed_at: '2025-08-24T20:01:59.572Z'
+version: 4.41.0
+installed_at: '2025-08-28T21:17:51.655Z'
 install_type: full
 agent: null
 ides_setup:
@@ -12,11 +12,14 @@ files:
   - path: .bmad-core/user-guide.md
     hash: e633affe88d4ff20
     modified: false
+  - path: .bmad-core/install-manifest.yaml
+    hash: 86ac4fdde7ccea50
+    modified: false
   - path: .bmad-core/enhanced-ide-development-workflow.md
     hash: 39beb3516c070e2b
     modified: false
   - path: .bmad-core/core-config.yaml
-    hash: 073cf6d2527c545d
+    hash: 94ce5b2faad48235
     modified: false
   - path: .bmad-core/workflows/greenfield-ui.yaml
     hash: defde5d6bdcedd49
