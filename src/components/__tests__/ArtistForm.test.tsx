@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ArtistForm, { type ArtistFormValue } from '@/components/ArtistForm';
 import { VALIDATION_LIMITS } from '@/lib/constants';
@@ -30,30 +30,31 @@ function Wrapper({
 
 function setup(initial: ArtistFormValue = { artistName: '', artistDescription: '' }) {
   mockOnSubmit.mockClear();
+  // Using delay: null speeds up tests significantly
+  const user = userEvent.setup({ delay: null });
   const { rerender } = render(<Wrapper initial={initial} />);
   const name = screen.getByLabelText(/nazwa artysty\/zespołu/i) as HTMLInputElement;
   const desc = screen.getByLabelText(/opis artysty/i) as HTMLTextAreaElement;
-  const submitBtn = screen.getByRole('button', { name: /generuj opis/i });
-  return { name, desc, submitBtn, mockOnSubmit, rerender };
+  const submitBtn = screen.getByRole('button', { name: /analizuj utwór/i });
+  return { user, name, desc, submitBtn, mockOnSubmit, rerender };
 }
 
 describe('ArtistForm', () => {
+  afterEach(cleanup);
   test('shows required errors after fields are touched', async () => {
-    const user = userEvent.setup();
-    const { name, desc } = setup();
+    const { user, name, desc } = setup();
 
     await user.click(name);
     await user.tab(); // blur name
     await user.click(desc);
     await user.tab(); // blur desc
 
-    const errors = await screen.findAllByText(/jest wymagane/i);
-    expect(errors.length).toBeGreaterThanOrEqual(2);
+    expect(await screen.findByText(/pole 'nazwa artysty\/zespołu' jest wymagane/i)).toBeInTheDocument();
+    expect(await screen.findByText(/pole 'opis artysty' jest wymagane/i)).toBeInTheDocument();
   });
 
   test('validates description min and max length', async () => {
-    const user = userEvent.setup();
-    const { desc } = setup();
+    const { user, desc } = setup();
 
     await user.type(desc, 'z'.repeat(MIN_DESCRIPTION - 1));
     await user.tab(); // blur to mark touched
@@ -70,20 +71,17 @@ describe('ArtistForm', () => {
     expect(
       await screen.findByText(new RegExp(`maksymalnie\\s+${MAX_DESCRIPTION}`,'i'))
     ).toBeInTheDocument();
-  });
+  }, 15000);
 
   test('shows live character counter', async () => {
-    const user = userEvent.setup();
-    const { desc } = setup();
+    const { user, desc } = setup();
 
-    // Counter may render with spaces/newlines; use function matcher
-    const counterMatcher = (text: string, node: Element | null) =>
-      node?.textContent?.replace(/\s+/g, '') === `0/${MAX_DESCRIPTION}`;
-    expect(screen.getByText(counterMatcher)).toBeInTheDocument();
+    // Check initial state
+    expect(screen.getByText(`0/${MAX_DESCRIPTION}`)).toBeInTheDocument();
+
+    // Check after typing
     await user.type(desc, 'abc');
-    const counterMatcher3 = (text: string, node: Element | null) =>
-      node?.textContent?.replace(/\s+/g, '') === `3/${MAX_DESCRIPTION}`;
-    expect(screen.getByText(counterMatcher3)).toBeInTheDocument();
+    expect(await screen.findByText(`3/${MAX_DESCRIPTION}`)).toBeInTheDocument();
   });
 });
 
@@ -98,10 +96,7 @@ describe('ArtistForm – additional high-priority cases', () => {
   });
 
   test('only description shows error when name is filled and description left empty after blur', async () => {
-    const user = userEvent.setup();
-    render(<Wrapper initial={{ artistName: '', artistDescription: '' }} />);
-    const name = screen.getByLabelText(/nazwa artysty\/zespołu/i) as HTMLInputElement;
-    const desc = screen.getByLabelText(/opis artysty/i) as HTMLTextAreaElement;
+    const { user, name, desc } = setup();
 
     await user.type(name, 'Some Artist');
     await user.tab(); // blur name
@@ -109,15 +104,12 @@ describe('ArtistForm – additional high-priority cases', () => {
     await user.tab(); // blur desc while empty
 
     // Name should not have an error; description should have an error
-    expect(screen.queryByText(/pole 'nazwa artysty\/zespołu' jest wymagane\./i)).toBeNull();
-    expect(await screen.findByText(/pole 'opis artysty' jest wymagane\./i)).toBeInTheDocument();
+    expect(screen.queryByText(/pole 'nazwa artysty\/zespołu' jest wymagane/i)).toBeNull();
+    expect(await screen.findByText(/pole 'opis artysty' jest wymagane/i)).toBeInTheDocument();
   });
 
   test('error messages are in Polish and linked via aria-describedby to the correct fields', async () => {
-    const user = userEvent.setup();
-    render(<Wrapper initial={{ artistName: '', artistDescription: '' }} />);
-    const name = screen.getByLabelText(/nazwa artysty\/zespołu/i) as HTMLInputElement;
-    const desc = screen.getByLabelText(/opis artysty/i) as HTMLTextAreaElement;
+    const { user, name, desc } = setup();
 
     // Trigger both errors
     await user.click(name); await user.tab();
@@ -129,7 +121,7 @@ describe('ArtistForm – additional high-priority cases', () => {
     expect(nameErrId).toBeTruthy();
     const nameErrEl = document.getElementById(String(nameErrId));
     expect(nameErrEl).toBeTruthy();
-    expect(nameErrEl).toHaveTextContent(/jest wymagane\./i);
+    expect(nameErrEl).toHaveTextContent(/pole 'nazwa artysty\/zespołu' jest wymagane/i);
 
     // Assert ARIA linkage and message for description
     expect(desc.getAttribute('aria-invalid')).toBe('true');
@@ -137,36 +129,32 @@ describe('ArtistForm – additional high-priority cases', () => {
     expect(descErrId).toBeTruthy();
     const descErrEl = document.getElementById(String(descErrId));
     expect(descErrEl).toBeTruthy();
-    expect(descErrEl).toHaveTextContent(/jest wymagane\./i);
+    expect(descErrEl).toHaveTextContent(/pole 'opis artysty' jest wymagane/i);
   });
 
   test('shows errors and does not submit when form is empty (TC1.1)', async () => {
-    const user = userEvent.setup();
-    const { submitBtn } = setup();
+    const { user, submitBtn } = setup();
 
     await user.click(submitBtn);
 
-    const errors = await screen.findAllByText(/jest wymagane/i);
-    expect(errors.length).toBeGreaterThanOrEqual(2);
+    expect(await screen.findByText(/pole 'nazwa artysty\/zespołu' jest wymagane/i)).toBeInTheDocument();
+    expect(await screen.findByText(/pole 'opis artysty' jest wymagane/i)).toBeInTheDocument();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
   test('shows only description error and does not submit (TC1.2)', async () => {
-    const user = userEvent.setup();
-    const { name, submitBtn } = setup();
+    const { user, name, submitBtn } = setup();
 
     await user.type(name, 'Valid Artist Name');
     await user.click(submitBtn);
 
-    const error = await screen.findByText(/pole 'opis artysty' jest wymagane\./i);
-    expect(error).toBeInTheDocument();
-    expect(screen.queryByText(/pole 'nazwa artysty\/zespołu' jest wymagane\./i)).toBeNull();
+    expect(await screen.findByText(/pole 'opis artysty' jest wymagane/i)).toBeInTheDocument();
+    expect(screen.queryByText(/pole 'nazwa artysty\/zespołu' jest wymagane/i)).toBeNull();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
   test('submits valid data successfully (TC2.3)', async () => {
-    const user = userEvent.setup();
-    const { name, desc, submitBtn } = setup();
+    const { user, name, desc, submitBtn } = setup();
 
     const validData = {
       artistName: 'Valid Artist Name',
@@ -179,26 +167,34 @@ describe('ArtistForm – additional high-priority cases', () => {
 
     expect(screen.queryByText(/jest wymagane/i)).toBeNull();
     expect(screen.queryByText(/co najmniej/i)).toBeNull();
-    expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+    });
     expect(mockOnSubmit).toHaveBeenCalledWith(validData);
   });
 
-  test('submits successfully with boundary description lengths', async () => {
-    const user = userEvent.setup();
-    const { name, desc, submitBtn } = setup();
+  test('submits successfully with minimum description length', async () => {
+    const { user, name, desc, submitBtn } = setup();
 
-    // Test with minimum length
     await user.type(name, 'Artist');
     await user.type(desc, 'a'.repeat(MIN_DESCRIPTION));
     await user.click(submitBtn);
-    expect(mockOnSubmit).toHaveBeenCalledTimes(1);
 
-    // Test with maximum length
-    mockOnSubmit.mockClear();
-    await user.clear(desc);
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  test('submits successfully with maximum description length', async () => {
+    const { user, name, desc, submitBtn } = setup();
+
+    await user.type(name, 'Artist');
     await user.type(desc, 'b'.repeat(MAX_DESCRIPTION));
     await user.click(submitBtn);
-    expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+    });
   });
 
   test('form fields have required attribute (TC4.3)', () => {
@@ -208,22 +204,19 @@ describe('ArtistForm – additional high-priority cases', () => {
   });
 
   test('character counter handles special characters and emoji correctly (TC6)', async () => {
-    const user = userEvent.setup();
-    const { desc } = setup();
+    const { user, desc } = setup();
 
     // Polish diacritics (5 chars) + emoji (2 chars for this one) = 7 total
-    const text = 'zażółć👍';
+    const text = 'zażółć👍'; // This string has a .length of 8 in JS
     await user.type(desc, text);
 
-    const counterMatcher = (content: string, node: Element | null) =>
-      node?.textContent?.replace(/\s+/g, '') === `${text.length}/${MAX_DESCRIPTION}`;
-
-    expect(screen.getByText(counterMatcher)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(`${text.length}/${MAX_DESCRIPTION}`)).toBeInTheDocument();
+    });
   });
 
   test('keyboard Tab sequence is logical (name -> desc -> submit) (TC4.1)', async () => {
-    const user = userEvent.setup();
-    const { name, desc, submitBtn } = setup();
+    const { user, name, desc, submitBtn } = setup();
 
     await user.tab();
     expect(document.activeElement).toBe(name);

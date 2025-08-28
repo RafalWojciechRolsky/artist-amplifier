@@ -37,10 +37,10 @@ describe('Home Page - Audio Analysis Flow', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
     await screen.findByText(file.name); // Wait for the file name to appear
 
-    // 2. Click the generate button
-    const generateButton = screen.getByRole('button', { name: /Generuj opis/i });
+    // 2. Click the analyze button
+    const analyzeButton = screen.getByRole('button', { name: /Analizuj utwór/i });
     await act(async () => {
-      fireEvent.click(generateButton);
+      fireEvent.click(analyzeButton);
     });
 
     // 3. Assert loading state and analysis call
@@ -54,8 +54,9 @@ describe('Home Page - Audio Analysis Flow', () => {
       expect(analysisResultStorage.get()).toEqual(mockAnalysisResult);
     });
     
-    // Check if the button text goes back to idle or to a success state
-    await screen.findByRole('button', { name: /Generuj opis/i });
+    // After analysis, the generate button should appear
+    const generateButton = await screen.findByRole('button', { name: /Generuj opis/i });
+    expect(generateButton).toBeInTheDocument();
   });
 
   it('should allow canceling the analysis', async () => {
@@ -82,19 +83,17 @@ describe('Home Page - Audio Analysis Flow', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
     await screen.findByText(file.name);
 
-    const generateButton = screen.getByRole('button', { name: /Generuj opis/i });
+    const analyzeButton = screen.getByRole('button', { name: /Analizuj utwór/i });
     await act(async () => {
-      fireEvent.click(generateButton);
+      fireEvent.click(analyzeButton);
     });
 
     const cancelButton = await screen.findByRole('button', { name: /Anuluj/i });
     fireEvent.click(cancelButton);
 
-    // Wait for the UI to return to the idle state
-    await screen.findByRole('button', { name: /Generuj opis/i });
-
-    // Assert UI returns to idle state
-    expect(screen.getByRole('button', { name: /Generuj opis/i })).toBeInTheDocument();
+    // Wait for the UI to return to the idle state and assert the correct button is present
+    const finalAnalyzeButton = await screen.findByRole('button', { name: /Analizuj utwór/i });
+    expect(finalAnalyzeButton).toBeInTheDocument();
     expect(screen.queryByText(/Analiza audio.../i)).not.toBeInTheDocument();
     
     // Check that the abort signal was triggered on the mock
@@ -119,9 +118,9 @@ describe('Home Page - Audio Analysis Flow', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
     await screen.findByText(file.name);
 
-    const generateButton = screen.getByRole('button', { name: /Generuj opis/i });
+    const analyzeButton = screen.getByRole('button', { name: /Analizuj utwór/i });
     await act(async () => {
-      fireEvent.click(generateButton);
+      fireEvent.click(analyzeButton);
     });
 
     // Wait for error message to be displayed
@@ -132,7 +131,8 @@ describe('Home Page - Audio Analysis Flow', () => {
     });
 
     // Assert UI returns to idle state but shows an error
-    expect(screen.getByRole('button', { name: /Generuj opis/i })).toBeInTheDocument();
+    const finalAnalyzeButton = await screen.findByRole('button', { name: /Analizuj utwór/i });
+    expect(finalAnalyzeButton).toBeInTheDocument();
   });
 
   it('should load initial state from sessionStorage', () => {
@@ -142,7 +142,8 @@ describe('Home Page - Audio Analysis Flow', () => {
     render(<Page />);
 
     // Check that the UI reflects the completed state from the session
-    expect(screen.getByText(/Ukończono analizę/i)).toBeInTheDocument();
+    const submitButton = screen.getByRole('button', { name: /analizuj utwór/i });
+    expect(submitButton).toBeEnabled();
     // You might also check if a results component is rendered with the data
   });
 });

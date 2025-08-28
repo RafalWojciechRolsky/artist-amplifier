@@ -16,6 +16,7 @@ export type AudioAnalysisResult = {
 type SessionStorageSchema = {
   [SESSION_KEYS.ARTIST_FORM]: ArtistFormValue;
   [SESSION_KEYS.ANALYSIS_RESULT]: AudioAnalysisResult;
+  [SESSION_KEYS.GENERATED_DESCRIPTION]: string;
 };
 
 // Type-safe sessionStorage wrapper
@@ -67,5 +68,11 @@ export const analysisResultStorage = {
   set: (value: AudioAnalysisResult) =>
     TypedSessionStorage.set(SESSION_KEYS.ANALYSIS_RESULT, value),
   remove: () => TypedSessionStorage.remove(SESSION_KEYS.ANALYSIS_RESULT),
+};
+
+export const generatedDescriptionStorage = {
+  get: () => TypedSessionStorage.get(SESSION_KEYS.GENERATED_DESCRIPTION),
+  set: (value: string) => TypedSessionStorage.set(SESSION_KEYS.GENERATED_DESCRIPTION, value),
+  remove: () => TypedSessionStorage.remove(SESSION_KEYS.GENERATED_DESCRIPTION),
 };
 
