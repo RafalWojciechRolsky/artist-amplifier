@@ -1,12 +1,21 @@
 'use client';
 
 import React from 'react';
-import ArtistForm, { type ArtistFormValue, validateArtistForm } from '@/components/ArtistForm';
+import ArtistForm, {
+	type ArtistFormValue,
+	validateArtistForm,
+} from '@/components/ArtistForm';
 import AudioUpload from '@/components/AudioUpload';
 import TextEditor from '@/components/TextEditor';
+import ActionButtons from '@/components/ActionButtons';
 import { analyzeAudio } from '@/lib/analysis';
 import { generateDescription } from '@/lib/api/generate';
-import { artistFormStorage, analysisResultStorage, type AudioAnalysisResult, generatedDescriptionStorage } from '@/lib/typedSession';
+import {
+	artistFormStorage,
+	analysisResultStorage,
+	type AudioAnalysisResult,
+	generatedDescriptionStorage,
+} from '@/lib/typedSession';
 import { UI_TEXT } from '@/lib/constants';
 
 type AppState = {
@@ -24,8 +33,8 @@ type Action =
 	| { type: 'SET_AUDIO_FILE'; payload: File | null }
 	| { type: 'SET_AUDIO_ERROR'; payload: string | null }
 	| { type: 'SET_GENERATED_DESCRIPTION'; payload: string }
-	| { type: 'SET_GENERATION_ERROR'; payload: string | null };
-
+	| { type: 'SET_GENERATION_ERROR'; payload: string | null }
+	| { type: 'RESET' };
 
 function reducer(state: AppState, action: Action): AppState {
 	switch (action.type) {
@@ -41,6 +50,8 @@ function reducer(state: AppState, action: Action): AppState {
 			return { ...state, generated: action.payload };
 		case 'SET_GENERATION_ERROR':
 			return { ...state, generationError: action.payload };
+		case 'RESET':
+			return createInitialState();
 		default:
 			return state;
 	}
@@ -48,19 +59,25 @@ function reducer(state: AppState, action: Action): AppState {
 
 const initialForm: ArtistFormValue = { artistName: '', artistDescription: '' };
 
+function createInitialState(): AppState {
+  return {
+    status: 'idle',
+    artistForm: { ...initialForm },
+    audioFile: null,
+    audioError: null,
+    generated: '',
+    generationError: null,
+  };
+}
+
 export default function Home() {
-	const [state, dispatch] = React.useReducer(reducer, {
-		status: 'idle',
-		artistForm: initialForm,
-		audioFile: null,
-		audioError: null,
-		generated: '',
-		generationError: null,
-	});
+	const [state, dispatch] = React.useReducer(reducer, createInitialState());
 	const abortRef = React.useRef<AbortController | null>(null);
-	const isFormValid = Object.keys(validateArtistForm(state.artistForm)).length === 0;
+	const isFormValid =
+		Object.keys(validateArtistForm(state.artistForm)).length === 0;
 	const isAnalysisComplete = !!analysisResultStorage.get();
-	const canGenerate = state.status === 'ready' && isFormValid && isAnalysisComplete;
+	const canGenerate =
+		state.status === 'ready' && isFormValid && isAnalysisComplete;
 
 	// Load state from session on first mount
 	React.useEffect(() => {
@@ -74,17 +91,29 @@ export default function Home() {
 		}
 		const savedDescription = generatedDescriptionStorage.get();
 		if (savedDescription) {
-			dispatch({ type: 'SET_GENERATED_DESCRIPTION', payload: savedDescription });
+			dispatch({
+				type: 'SET_GENERATED_DESCRIPTION',
+				payload: savedDescription,
+			});
 		}
 	}, []);
 
-	// Persist form to session on change
-	React.useEffect(() => {
-		artistFormStorage.set(state.artistForm);
-	}, [state.artistForm]);
+	// Persist form to session on change (avoid saving empty form after reset)
+  React.useEffect(() => {
+    const { artistName, artistDescription } = state.artistForm;
+    if (artistName || artistDescription) {
+      artistFormStorage.set(state.artistForm);
+    } else {
+      artistFormStorage.remove();
+    }
+  }, [state.artistForm]);
 
 	React.useEffect(() => {
-		generatedDescriptionStorage.set(state.generated);
+		if (state.generated && state.generated.trim() !== '') {
+      generatedDescriptionStorage.set(state.generated);
+    } else {
+      generatedDescriptionStorage.remove();
+    }
 	}, [state.generated]);
 
 	async function handleSubmit(value: ArtistFormValue) {
@@ -92,7 +121,10 @@ export default function Home() {
 		artistFormStorage.set(value);
 		// Start analysis only when a valid file is selected
 		if (!state.audioFile) {
-			dispatch({ type: 'SET_AUDIO_ERROR', payload: UI_TEXT.VALIDATION_MESSAGES.AUDIO_REQUIRED });
+			dispatch({
+				type: 'SET_AUDIO_ERROR',
+				payload: UI_TEXT.VALIDATION_MESSAGES.AUDIO_REQUIRED,
+			});
 			return;
 		}
 		// Reset previous error and persist UI state
@@ -103,7 +135,9 @@ export default function Home() {
 		abortRef.current = controller;
 
 		try {
-			const result: AudioAnalysisResult = await analyzeAudio(state.audioFile, { signal: controller.signal });
+			const result: AudioAnalysisResult = await analyzeAudio(state.audioFile, {
+				signal: controller.signal,
+			});
 			analysisResultStorage.set(result);
 			dispatch({ type: 'SET_STATUS', payload: 'ready' });
 		} catch (err: unknown) {
@@ -132,7 +166,10 @@ export default function Home() {
 		try {
 			// Require audio file present to proceed (should be ensured by ready state)
 			if (!state.audioFile) {
-				dispatch({ type: 'SET_GENERATION_ERROR', payload: UI_TEXT.VALIDATION_MESSAGES.AUDIO_REQUIRED });
+				dispatch({
+					type: 'SET_GENERATION_ERROR',
+					payload: UI_TEXT.VALIDATION_MESSAGES.AUDIO_REQUIRED,
+				});
 				dispatch({ type: 'SET_STATUS', payload: 'ready' });
 				return;
 			}
@@ -152,7 +189,10 @@ export default function Home() {
 			}
 			// QA: keep UI in 'ready' to allow retry and show message
 			dispatch({ type: 'SET_STATUS', payload: 'ready' });
-			const message = err instanceof Error ? err.message : 'Wystąpił błąd podczas generowania opisu.';
+			const message =
+				err instanceof Error
+					? err.message
+					: 'Wystąpił błąd podczas generowania opisu.';
 			dispatch({ type: 'SET_GENERATION_ERROR', payload: message });
 		} finally {
 			abortRef.current = null;
@@ -161,6 +201,17 @@ export default function Home() {
 
 	function handleCancel() {
 		abortRef.current?.abort();
+	}
+
+	function handleReset() {
+		// Abort any in-flight requests
+		abortRef.current?.abort();
+		// Clear persisted session state
+		artistFormStorage.remove();
+		analysisResultStorage.remove();
+		generatedDescriptionStorage.remove();
+		// Reset UI state
+		dispatch({ type: 'RESET' });
 	}
 
 	return (
@@ -178,9 +229,13 @@ export default function Home() {
 						<div className='grid gap-2'>
 							<AudioUpload
 								value={state.audioFile}
-								onChange={(file) => dispatch({ type: 'SET_AUDIO_FILE', payload: file })}
+								onChange={(file) =>
+									dispatch({ type: 'SET_AUDIO_FILE', payload: file })
+								}
 								error={state.audioError}
-								setError={(msg) => dispatch({ type: 'SET_AUDIO_ERROR', payload: msg })}
+								setError={(msg) =>
+									dispatch({ type: 'SET_AUDIO_ERROR', payload: msg })
+								}
 							/>
 							{state.status === 'analyzing' && (
 								<div className='flex justify-end'>
@@ -195,9 +250,14 @@ export default function Home() {
 							)}
 							{/* Optional status message */}
 							{state.status !== 'idle' && (
-								<p className='text-sm text-gray-600' aria-live="polite" role="status">
+								<p
+									className='text-sm text-gray-600'
+									aria-live='polite'
+									role='status'
+								>
 									{state.status === 'analyzing' && UI_TEXT.STATUS.ANALYZING}
-									{state.status === 'generating' && UI_TEXT.BUTTONS.GENERATE_LOADING}
+									{state.status === 'generating' &&
+										UI_TEXT.BUTTONS.GENERATE_LOADING}
 									{state.status === 'ready' && UI_TEXT.STATUS.DONE}
 									{state.status === 'error' && UI_TEXT.STATUS.ERROR}
 								</p>
@@ -206,26 +266,38 @@ export default function Home() {
 					}
 				/>
 				{(state.status === 'ready' || state.status === 'generating') && (
-					<div className="w-full max-w-screen-sm mx-auto grid gap-4 mt-8">
-						<h2 className="text-lg font-semibold">Wygenerowany opis</h2>
+					<div className='w-full max-w-screen-sm mx-auto grid gap-4 mt-8'>
+						<h2 className='text-lg font-semibold'>Wygenerowany opis</h2>
 						<TextEditor
 							value={state.generated}
-							onChange={(e) => dispatch({ type: 'SET_GENERATED_DESCRIPTION', payload: e.target.value })}
-							placeholder="Tutaj pojawi się wygenerowany opis..."
-							ariaLabel="Edytor wygenerowanego opisu"
+							onChange={(e) =>
+								dispatch({
+									type: 'SET_GENERATED_DESCRIPTION',
+									payload: e.target.value,
+								})
+							}
+							placeholder='Tutaj pojawi się wygenerowany opis...'
+							ariaLabel='Edytor wygenerowanego opisu'
 						/>
-						<div className="flex justify-end">
+						<ActionButtons
+							artistName={state.artistForm.artistName}
+							text={state.generated}
+							onReset={handleReset}
+						/>
+						<div className='flex justify-end'>
 							<button
-								type="button"
+								type='button'
 								onClick={handleGenerate}
 								disabled={!canGenerate || state.status === 'generating'}
-								className="px-6 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+								className='px-6 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed'
 							>
-								{state.status === 'generating' ? UI_TEXT.BUTTONS.GENERATE_LOADING : UI_TEXT.BUTTONS.GENERATE_IDLE}
+								{state.status === 'generating'
+									? UI_TEXT.BUTTONS.GENERATE_LOADING
+									: UI_TEXT.BUTTONS.GENERATE_IDLE}
 							</button>
 						</div>
 						{state.status === 'generating' && (
-							<div className="flex justify-end">
+							<div className='flex justify-end'>
 								<button
 									type='button'
 									onClick={handleCancel}
@@ -247,4 +319,3 @@ export default function Home() {
 		</div>
 	);
 }
-

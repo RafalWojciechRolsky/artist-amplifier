@@ -29,6 +29,13 @@ export default function AudioUpload({ value, onChange, error, setError }: Props)
   const errorRef = React.useRef<HTMLParagraphElement | null>(null);
   const [validating, setValidating] = React.useState(false);
 
+  // Ensure input element clears when value is reset (e.g., global reset)
+  React.useEffect(() => {
+    if (!value && inputRef.current) {
+      inputRef.current.value = "";
+    }
+  }, [value]);
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {

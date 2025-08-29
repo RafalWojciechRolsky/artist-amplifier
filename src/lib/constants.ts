@@ -42,11 +42,17 @@ export const UI_TEXT = {
     GENERATE_IDLE: 'Generuj opis',
     GENERATE_LOADING: 'Generowanie opisu...',
     CANCEL: 'Anuluj',
+    COPY: 'Kopiuj do schowka',
+    DOWNLOAD: 'Pobierz jako .txt',
+    RESET: 'Reset',
   },
   STATUS: {
     READY: 'Gotowe do generowania',
     ANALYZING: 'Analiza',
     ERROR: 'Błąd analizy',
     DONE: 'Ukończono analizę',
+  },
+  FEEDBACK: {
+    COPIED: 'Skopiowano!'
   },
 } as const;
