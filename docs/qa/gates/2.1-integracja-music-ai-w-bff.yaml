@@ -1,0 +1,16 @@
+schema: 1
+story: '2.1'
+gate: FAIL
+status_reason: 'Critical test coverage gaps. No unit or integration tests exist for the external service interaction, error handling, or data mapping.'
+reviewer: 'Quinn'
+updated: '2025-08-29T12:00:00Z'
+top_issues:
+  - id: 'TEST-001'
+    severity: high
+    finding: 'No unit tests for the new src/lib/server/musicai.ts module.'
+    suggested_action: 'Implement unit tests mocking the @music.ai/sdk as required by the story.'
+  - id: 'TEST-002'
+    severity: high
+    finding: 'No integration tests for the /api/audio/generate endpoint.'
+    suggested_action: 'Add integration tests to verify the full flow, including error handling and frontend contract adherence.'
+waiver: { active: false }
