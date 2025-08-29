@@ -7,10 +7,12 @@ Zewnętrzne integracje obsługujemy wyłącznie z BFF (Route Handlers) — klucz
 - **Dostęp**: SDK `@music.ai/sdk` (Node, w BFF). Auth przez `MUSIC_AI_API_KEY` (SDK dodaje nagłówki).
 - **Workflow**: identyfikator przechowywany w `MUSIC_AI_WORKFLOW_ANALYZE` (ENV), aby móc zmieniać bez modyfikacji kodu.
 - **Metody SDK używane**:
-  - `uploadFile(localPathOrBuffer) → inputUrl`
-  - `addJob({ name, workflow, params: { inputUrl } }) → jobId`
+  - `uploadFile(filePath: string) → inputUrl`
+    - Uwaga: w MVP zapisujemy plik do ścieżki tymczasowej (np. `/tmp/<uuid>.wav`) i przekazujemy tę ścieżkę do `uploadFile`.
+  - `addJob({ name, workflow, params: { inputUrl } }) → jobId` (preferujemy wariant obiektowy; stabilniejszy interfejs)
   - `waitForJobCompletion(jobId) → job` (status: `SUCCEEDED`/`FAILED`)
-  - (opcjonalnie) `downloadJobResults(...)`
+  - (opcjonalnie) `downloadJobResults(...)` — nieużywane w MVP, chyba że workflow zwróci przydatne artefakty do diagnostyki
+  - (opcjonalne API SDK, niewykorzystywane w MVP): `deleteJob`, `listJobs`, `listWorkflows`
 - **Kontrakt**: mapujemy `job.result` na `AudioAnalysis` (`durationSec`, `bpm?`, `musicalKey?`, `energy?`). Nazwy kluczy wyników zależą od konkretnego workflow — mapowanie zamykamy w warstwie BFF.
 - **Limity/Timeouty**:
   - Wejście: `.mp3/.wav` ≤ 50 MB (walidujemy na FE i BE).

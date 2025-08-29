@@ -100,10 +100,12 @@ export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, er
           aria-describedby={
             touched.artistName && mergedErrors.artistName ? "artistName-error" : undefined
           }
-          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="artist-name-input"
+          placeholder="Nazwa artysty lub zespołu"
+          className="w-full rounded-lg border aa-border aa-field px-3 py-2 focus:outline-none"
         />
         {touched.artistName && mergedErrors.artistName && (
-          <p id="artistName-error" className="text-sm text-red-600">
+          <p id="artistName-error" className="text-sm text-[color:var(--color-error)]">
             {mergedErrors.artistName}
           </p>
         )}
@@ -126,16 +128,18 @@ export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, er
               ? "artistDescription-error"
               : undefined
           }
-          className="w-full min-h-32 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="artist-description-input"
+          placeholder="Kilka zdań o Tobie, Twoim gatunku i inspiracjach..."
+          className="w-full min-h-32 resize-y rounded-lg border aa-border aa-field px-3 py-2 focus:outline-none"
         />
         <div className="flex items-center justify-between text-sm">
-          <p className="text-gray-600">
+          <p className="aa-text-secondary">
             {descLength}/{MAX_DESCRIPTION}
           </p>
-          <p className="text-gray-500">Minimum {MIN_DESCRIPTION} znaków</p>
+          <p className="aa-text-secondary">Minimum {MIN_DESCRIPTION} znaków</p>
         </div>
         {touched.artistDescription && mergedErrors.artistDescription && (
-          <p id="artistDescription-error" className="text-sm text-red-600">
+          <p id="artistDescription-error" className="text-sm text-[color:var(--color-error)]">
             {mergedErrors.artistDescription}
           </p>
         )}
@@ -147,7 +151,8 @@ export default function ArtistForm({ value, onChange, onSubmit, isSubmitting, er
         <button
           type="submit"
           disabled={isSubmitting}
-          className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          data-testid="submit-button"
+          className="px-6 py-2 font-semibold rounded-md aa-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? UI_TEXT.BUTTONS.SUBMIT_LOADING : UI_TEXT.BUTTONS.SUBMIT_IDLE}
         </button>

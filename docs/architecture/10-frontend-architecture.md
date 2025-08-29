@@ -36,7 +36,19 @@ Architektura FE jest minimalna (single‑screen, App Router, streaming OFF). Klu
 ## 10.6 Stylowanie i UI
 
 - Tailwind CSS v4 (utility‑first). Prosty, czytelny layout (mobile‑first).
-- Spójne stany focus/disabled, dostępne kontrasty. Reużywalne klasy pomocnicze.
+- Motyw „retro neon” zdefiniowany w `src/app/globals.css` oparty o CSS custom properties:
+  - Tokeny: `--neon-primary` (cyan), `--neon-secondary` (magenta), `--color-surface`, `--color-surface-elev`, `--color-text-*`, `--color-border`, `--ui-field-bg`.
+  - Klasy narzędziowe (prefiks `aa-`):
+    - Typografia: `aa-heading`, `aa-heading-secondary` (neonowe tytuły, cień świetlny).
+    - Przyciski: `aa-btn-primary` (główne CTA, cyan glow), `aa-btn-ghost` (drugorzędne, ghost neon), `aa-pulse` (animacja „busy”).
+    - Pola: `aa-field` (tło i obramowanie pól), `aa-border` (kolor ramki), `aa-dashed` (styl przerywany).
+  - Globalny focus: `*:focus-visible` z wyraźnym konturem dla dostępności.
+- Mapowanie użycia w komponentach:
+  - `src/app/page.tsx` — `aa-heading` na H1, `aa-heading-secondary` na nagłówku sekcji; przycisk „Generuj” z `aa-btn-primary` i `aa-pulse` w stanie `generating`.
+  - `src/components/TextEditor.tsx` — `textarea` z `aa-field` + `aa-border`.
+  - `src/components/AudioUpload.tsx` — input typu `file` z `aa-field` + `aa-border aa-dashed`; pomocniczy hint pod polem.
+  - `src/components/ActionButtons.tsx` — przyciski kopiuj/pobierz/reset jako `aa-btn-ghost`.
+- Spójne stany focus/disabled i kontrasty są zapewnione przez `globals.css`; semantyka, ARIA i logika pozostają bez zmian.
 
 ## 10.7 Błędy i UX
 

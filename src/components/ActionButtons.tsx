@@ -34,7 +34,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ artistName, text, onReset
           type="button"
           onClick={handleCopy}
           disabled={disabled}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:bg-gray-200 disabled:text-gray-400"
+          data-testid="copy-button"
+          className="px-4 py-2 rounded-lg border aa-border aa-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {UI_TEXT.BUTTONS.COPY}
         </button>
@@ -42,12 +43,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ artistName, text, onReset
           type="button"
           onClick={handleDownload}
           disabled={disabled}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:bg-gray-200 disabled:text-gray-400"
+          data-testid="download-button"
+          className="px-4 py-2 rounded-lg border aa-border aa-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {UI_TEXT.BUTTONS.DOWNLOAD}
         </button>
         {copied && (
-          <span role="status" aria-live="polite" className="text-sm text-green-700">
+          <span role="status" aria-live="polite" className="text-sm text-[var(--color-success)]">
             {UI_TEXT.FEEDBACK.COPIED}
           </span>
         )}
@@ -56,7 +58,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ artistName, text, onReset
         <button
           type="button"
           onClick={onReset}
-          className="px-4 py-2 border border-red-300 rounded-md text-red-700 hover:bg-red-50"
+          data-testid="reset-button"
+          className="px-4 py-2 rounded-lg border aa-btn-ghost"
         >
           {UI_TEXT.BUTTONS.RESET}
         </button>

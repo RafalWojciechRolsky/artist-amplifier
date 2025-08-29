@@ -6,12 +6,6 @@ First, run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
@@ -19,6 +13,23 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Design System (Neon)
+
+The UI uses a retro neon theme defined in `src/app/globals.css` with utility classes:
+
+- `aa-heading`, `aa-heading-secondary` — neon titles (cyan / magenta)
+- `aa-btn-primary` — primary CTA (cyan glow)
+- `aa-btn-ghost` — secondary ghost buttons
+- `aa-field`, `aa-border`, `aa-dashed` — inputs/textarea styles and dashed borders
+- `aa-pulse` — pulse animation for busy state (e.g., Generate button while generating)
+
+Current usage:
+
+- `src/app/page.tsx`: neon headings, Generate button pulses while `status === 'generating'`.
+- `src/components/TextEditor.tsx`: textarea uses `aa-field`.
+- `src/components/AudioUpload.tsx`: dashed neon border field and helper hint.
+- `src/components/ActionButtons.tsx`: copy/download/reset use `aa-btn-ghost`.
 
 ## Learn More
 

@@ -16,7 +16,8 @@ const TextEditor: React.FC<TextEditorProps> = ({ value, onChange, placeholder, d
       placeholder={placeholder}
       disabled={disabled}
       aria-label={ariaLabel}
-      className="w-full min-h-48 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      data-testid="text-editor"
+      className="w-full min-h-48 resize-y rounded-lg border aa-border aa-field px-3 py-2 focus:outline-none"
     />
   );
 };
