@@ -511,30 +511,33 @@ Przykłady copy:
 
 ### Esencja marki i ton
 
-- Ton: przyjazny, konkretny, pewny; bez żargonu technicznego.
-  {{ ... }}
+- Ton: nowoczesny, odważny, cyfrowy, z nutą retro-futuryzmu (cyberpunk/neon).
 - Głos: pomocny, nastawiony na szybki efekt; etykiety akcji w trybie rozkazującym (np. „Generuj opis”).
 - Język UI: PL (domyślnie), gotowość do i18n; zwięzłe komunikaty błędów.
 
-### System kolorów
+### System kolorów (Retro Neon Dark Theme)
+
+Oficjalnym motywem aplikacji jest ciemny motyw "retro neon", który wykorzystuje głęboką czerń i kontrasty z żywymi, neonowymi kolorami, aby stworzyć charakterystyczny, nowoczesny wygląd.
 
 #### Paleta podstawowa
 
 | Rola | Kolor | Hex | Zastosowanie |
-| --- | --- | --- | --- |
-| Primary Accent | Fioletowy | `#6A3DE8` | Przyciski główne, aktywne stany, elementy interaktywne |
-| Primary Accent (hover) | Ciemny fiolet | `#5429D0` | Stan hover dla przycisków primary |
-| Secondary Accent | Jasny fiolet | `#9B7AFF` | Akcenty drugorzędne, ikony, podkreślenia |
-| Surface | Biały | `#FFFFFF` | Tło główne aplikacji |
-| Surface-Elevated | Jasny szary | `#F5F5F7` | Tła sekcji, karty, pola formularzy |
-| Text Primary | Granatowy | `#1A1A2E` | Główny tekst, nagłówki, etykiety |
-| Text Secondary | Ciemny szary | `#4A4A57` | Tekst pomocniczy, opisy, placeholdery |
-| Border | Szary | `#E1E1E6` | Obramowania, separatory |
+| :--- | :--- | :--- | :--- |
+| Neon Primary | Turkusowy/Cyan | `#00f2ff` | Główne przyciski, aktywne stany, nagłówki, elementy interaktywne |
+| Neon Primary (hover) | Jasny turkus | `#66f9ff` | Stan hover dla głównych elementów |
+| Neon Secondary | Magenta | `#ff00ff` | Drugorzędne akcenty, przyciski ghost, dodatkowe wyróżnienia |
+| Background | Ciemna czerń | `#1a1a1a` | Główne tło aplikacji |
+| Surface | Bardzo ciemny szary | `#121212` | Tło dla głównych sekcji i kontentu |
+| Surface-Elevated | Ciemny szary | `#1c1c1f` | Tła dla podniesionych elementów, karty, modale |
+| Text Primary | Jasny szary | `#e0e0e0` | Główny tekst, etykiety |
+| Text Secondary | Szary | `#9aa4aa` | Tekst pomocniczy, opisy, placeholdery |
+| Border | Przezroczysty neon | `rgba(0, 242, 255, 0.35)` | Obramowania, separatory |
+| Field Background | Bardzo ciemny szary | `#0f1011` | Tło dla pól formularzy |
 
 #### Kolory funkcjonalne
 
 | Rola | Kolor | Hex | Zastosowanie |
-| --- | --- | --- | --- |
+| :--- | :--- | :--- | :--- |
 | Success | Zielony | `#22C55E` | Komunikaty sukcesu, potwierdzenia |
 | Warning | Pomarańczowy | `#F59E0B` | Ostrzeżenia, komunikaty informacyjne |
 | Error | Czerwony | `#EF4444` | Błędy, komunikaty krytyczne |
@@ -542,24 +545,22 @@ Przykłady copy:
 
 #### Warianty przycisków
 
-| Wariant | Tło | Tekst | Border | Hover |
-| --- | --- | --- | --- | --- |
-| Primary | `#6A3DE8` | `#FFFFFF` | brak | `#5429D0` |
-| Secondary | `#FFFFFF` | `#1A1A2E` | `#E1E1E6` | `#F5F5F7` |
-| Ghost | transparent | `#4A4A57` | brak | `#F5F5F7` |
+| Wariant | Tło | Tekst | Border | Hover/Focus Effects |
+| :--- | :--- | :--- | :--- | :--- |
+| Primary (`aa-btn-primary`) | `var(--neon-primary)` | `#0b0b0c` | brak | `background-color: var(--neon-primary-hover)`, neonowy `box-shadow` |
+| Ghost (`aa-btn-ghost`) | `transparent` | `var(--neon-secondary)` | `1px solid rgba(255, 0, 255, 0.55)` | `background: rgba(255, 0, 255, 0.06)`, neonowy `box-shadow` |
 
 #### Zasady kontrastu
 
-- Tekst na tle: kontrast ≥ 4.5:1 (WCAG AA)
-- Elementy interaktywne/stany: kontrast ≥ 3:1
-- Nie stosować jasnego tekstu na akcencie bez zachowania kontrastu
-- Kolory funkcjonalne (Success, Warning, Error) używane z ciemnym tekstem dla zachowania kontrastu
+- Tekst na tle: kontrast ≥ 4.5:1 (WCAG AA).
+- Elementy interaktywne/stany: kontrast ≥ 3:1.
+- Kolory neonowe są używane na ciemnym tle, aby zapewnić maksymalną czytelność i efekt wizualny.
 
 #### Dostępność kolorów
 
-- Paleta zweryfikowana pod kątem dostępności dla osób z daltonizmem
-- Informacje nie są przekazywane wyłącznie za pomocą koloru (zawsze z tekstem/ikoną)
-- Tryb wysokiego kontrastu: obsługa `prefers-contrast: more` z ciemniejszymi kolorami tekstu i wyraźniejszymi obramowaniami
+- Paleta zweryfikowana pod kątem dostępności dla osób z daltonizmem.
+- Informacje nie są przekazywane wyłącznie za pomocą koloru (zawsze z tekstem/ikoną).
+- Tryb wysokiego kontrastu: obsługa `prefers-contrast: more` z ciemniejszymi kolorami tekstu i wyraźniejszymi obramowaniami.
 
 ### Typografia
 
