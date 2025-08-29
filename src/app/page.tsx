@@ -217,7 +217,7 @@ export default function Home() {
 	return (
 		<div className='font-sans grid grid-rows-[auto_1fr_auto] items-start justify-items-center min-h-screen p-6 gap-8 sm:p-10'>
 			<header className='w-full max-w-screen-sm'>
-				<h1 className='text-2xl font-semibold'>Artist Amplifier</h1>
+				<h1 className='text-3xl font-semibold aa-heading'>Artist Amplifier</h1>
 			</header>
 			<main className='w-full'>
 				<ArtistForm
@@ -242,7 +242,8 @@ export default function Home() {
 									<button
 										type='button'
 										onClick={handleCancel}
-										className='px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50'
+										data-testid='cancel-button'
+										className='px-4 py-2 border rounded-md aa-border text-[var(--color-text-primary)] hover:bg-[color:var(--color-surface-elev)]'
 									>
 										{UI_TEXT.BUTTONS.CANCEL}
 									</button>
@@ -251,9 +252,10 @@ export default function Home() {
 							{/* Optional status message */}
 							{state.status !== 'idle' && (
 								<p
-									className='text-sm text-gray-600'
+									className='text-sm aa-text-secondary'
 									aria-live='polite'
 									role='status'
+									data-testid='status-banner'
 								>
 									{state.status === 'analyzing' && UI_TEXT.STATUS.ANALYZING}
 									{state.status === 'generating' &&
@@ -267,7 +269,7 @@ export default function Home() {
 				/>
 				{(state.status === 'ready' || state.status === 'generating') && (
 					<div className='w-full max-w-screen-sm mx-auto grid gap-4 mt-8'>
-						<h2 className='text-lg font-semibold'>Wygenerowany opis</h2>
+						<h2 className='text-lg font-semibold aa-heading-secondary'>Wygenerowany opis</h2>
 						<TextEditor
 							value={state.generated}
 							onChange={(e) =>
@@ -289,7 +291,8 @@ export default function Home() {
 								type='button'
 								onClick={handleGenerate}
 								disabled={!canGenerate || state.status === 'generating'}
-								className='px-6 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed'
+								data-testid='generate-button'
+								className={`px-6 py-2 font-semibold rounded-lg aa-btn-primary disabled:opacity-50 disabled:cursor-not-allowed ${state.status === 'generating' ? 'aa-pulse' : ''}`}
 							>
 								{state.status === 'generating'
 									? UI_TEXT.BUTTONS.GENERATE_LOADING
@@ -301,14 +304,15 @@ export default function Home() {
 								<button
 									type='button'
 									onClick={handleCancel}
-									className='px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50'
+									data-testid='cancel-button'
+									className='px-4 py-2 border rounded-md aa-border text-[var(--color-text-primary)] hover:bg-[color:var(--color-surface-elev)]'
 								>
 									{UI_TEXT.BUTTONS.CANCEL}
 								</button>
 							</div>
 						)}
 						{state.generationError && (
-							<p className='text-sm text-red-600'>{state.generationError}</p>
+							<p className='text-sm text-[color:var(--color-error)]'>{state.generationError}</p>
 						)}
 					</div>
 				)}
