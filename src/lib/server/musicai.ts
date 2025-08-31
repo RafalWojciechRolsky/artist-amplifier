@@ -193,31 +193,26 @@ export async function analyzeAudioRaw(
 
 		// This mock is compatible with `transformMusicAiRawToAnalyzedTrack`
 		return {
-			// Basic fields for `mapResultToAnalysis`
-			duration: 225.5,
-			DUPA: 'DUPA',
-			tempo: 125,
-			tonality: 'A#m',
-			intensity: 0.75,
-
-			// Detailed fields for `transformMusicAiRawToAnalyzedTrack`
-			// Values are strings, often stringified JSON, as the transformer expects.
-			Mood: '["energetic", "dark", "driving"]' as const,
-			Genre: '["Electronic", "Techno"]' as const,
-			Subgenre: '["Ambient"]' as const,
-			Instruments: '["synthesizer", "drum machine", "bass"]' as const,
-			Movement: '[]' as const,
+			// This structure is based on the consumer function in `musicaiTransform.ts`.
+			Duration: 225.5,
+			Mood: '["energetic", "dark", "driving"]',
+			Genre: '["Electronic", "Techno"]',
+			Subgenre: '["Ambient"]',
+			Instruments: '["synthesizer", "drum machine", "bass"]',
+			Movement: '[]',
 			Energy: 'High',
 			Emotion: 'Tense',
 			Language: 'Instrumental',
 			'Root Key': 'A#m',
 			'Time signature': '4/4',
-			'Voide gender': 'N/A', // Note: original transformer has a typo here
+			'Voice gender': 'N/A',
 			'Voice presence': 'No',
 			'Musical era': '2020s',
+			Cover: '', // URL to cover art
+
 			// URLs are expected for these; return empty strings for the mock
-			Lyrics: '',
-			'Chords structure': '',
+			Lyrics: '', // URL to a JSON file with lyrics
+			'Chords structure': '', // URL to a JSON file with chords
 		};
 	}
 	// --- END DEV MOCK ---

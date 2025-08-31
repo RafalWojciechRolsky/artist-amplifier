@@ -14,6 +14,23 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment Variables
+
+Create a `.env.local` file based on `.env.example` and provide the following values:
+
+- `MUSIC_AI_API_KEY` — API key for the Music.ai SDK (required for real analysis)
+- `MUSIC_AI_WORKFLOW_ANALYZE` — Workflow ID used by Music.ai for the analyze step (required)
+- `MOCK_MUSIC_AI` — optional (`true`/`false`). When `true`, the backend returns a mocked analysis for local development without hitting Music.ai.
+
+Example `.env.local`:
+
+```bash
+MUSIC_AI_API_KEY="your-music-ai-api-key-here"
+MUSIC_AI_WORKFLOW_ANALYZE="your-music-ai-workflow-id-here"
+# Optional for local dev without external calls
+MOCK_MUSIC_AI=true
+```
+
 ## Design System (Neon)
 
 The UI uses a retro neon theme defined in `src/app/globals.css` with utility classes:

@@ -160,7 +160,6 @@ export default function Home() {
 			// 	result?.data;
 			dispatch({ type: 'SET_ANALYSIS_RESULT', payload: result });
 			dispatch({ type: 'SET_STATUS', payload: 'ready' });
-			console.log('[audio/analyze] full analyzed track ->', state);
 		} catch (err: unknown) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
 				// Stay idle after cancel
