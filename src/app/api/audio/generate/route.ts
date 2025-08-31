@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { generateDescription as llmGenerateDescription } from "@/lib/server/llm";
+import type { AnalyzedTrack, AnalysisResult } from "@/lib/types/analysis";
+import { transformMusicAiRawToAnalyzedTrack } from "@/lib/server/musicaiTransform";
 
 // Basic in-memory rate limiter: max 20 requests per 5 minutes per IP
 const WINDOW_MS = 5 * 60 * 1000;
@@ -53,11 +56,7 @@ type GeneratePayload = {
   artistDescription: string;
   language?: string;
   template?: string;
-  analysis: {
-    id: string;
-    provider: string;
-    data: Record<string, unknown>;
-  };
+  analysis: AnalysisResult;
 };
 
 type ParsedJsonOk = {
@@ -119,14 +118,14 @@ async function parseAndValidateJson(req: NextRequest, requestId: string): Promis
   return { ok: true, data: { artistName, artistDescription, language, template, analysis } };
 }
 
-function successResponse({ language, text, outline }: { language: string; text: string; outline: string[] }) {
+function successResponse({ language, text, outline, modelName, tokensUsed }: { language: string; text: string; outline: string[]; modelName?: string; tokensUsed?: number }) {
   return NextResponse.json(
     {
       language,
       text,
       outline,
-      modelName: "stub-llm",
-      tokensUsed: 512 + Math.floor(Math.random() * 256),
+      modelName,
+      tokensUsed,
     },
     { status: 200 }
   );
@@ -162,20 +161,28 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return parsed.res;
   const { artistName, artistDescription, language, template, analysis } = parsed.data;
 
-  // Extract helpful hints from prior analysis for generation
+  // Extract AnalyzedTrack for LLM; if missing in payload, attempt to transform raw data
   const data = analysis.data as Record<string, unknown>;
-  const tempo = typeof data.tempo === 'number' ? data.tempo : undefined;
-  const moodFromData = typeof data.mood === 'string' ? data.mood : undefined;
-  const analyzedTrack = (isRecord(data.analyzedTrack) ? data.analyzedTrack : undefined) as
-    | ({ energyLevel?: unknown; energy?: unknown; durationSec?: unknown; bpm?: unknown; musicalKey?: unknown })
-    | undefined;
-  const energyHint = ((): number | string | undefined => {
-    if (!analyzedTrack) return undefined;
-    if (typeof analyzedTrack.energyLevel === 'string') return analyzedTrack.energyLevel;
-    if (typeof analyzedTrack.energy === 'number') return analyzedTrack.energy;
-    return undefined;
-  })();
-  const mood = moodFromData ?? determineMood(energyHint);
+  let analyzed: AnalyzedTrack | null = null;
+  const maybeAnalyzed = isRecord(data.analyzedTrack) ? (data.analyzedTrack as Record<string, unknown>) : null;
+  if (maybeAnalyzed) {
+    analyzed = maybeAnalyzed as unknown as AnalyzedTrack;
+  } else {
+    try {
+      analyzed = await transformMusicAiRawToAnalyzedTrack(data);
+    } catch {
+      analyzed = null;
+    }
+  }
+
+  if (!analyzed) {
+    return apiError(400, "INVALID_ANALYSIS", "Unable to derive analyzed track from payload.", undefined, requestId);
+  }
+
+  // Extract helpful hints for outline (UX), independent of LLM
+  const tempo = typeof (data as Record<string, unknown>).tempo === 'number' ? (data as Record<string, number>).tempo : undefined;
+  const energyHint = analyzed.energyLevel;
+  const mood = determineMood(energyHint);
 
   try {
     if (!process.env.JEST_WORKER_ID) {
@@ -186,15 +193,32 @@ export async function POST(req: NextRequest) {
     // ignore logging errors
   }
 
-  // Keep response contract for MVP; enrich outline with provided analysis hints
+  // Keep outline for UX context while switching text to real LLM output
   const outline = [
     "Hook: Kim jest artysta i klimat utworu",
     `Sygnały z analizy: tempo=${tempo ?? '—'}` + (mood ? `, nastrój=${mood}` : ''),
     "Propozycje wykorzystania / playlisty",
   ];
 
-  const prefix = template ? "(wg szablonu) " : "";
-  const text = `${prefix}${artistName} — ${artistDescription.slice(0, 140)}...`;
-
-  return successResponse({ language, text, outline });
+  try {
+    const lang = language === 'en' ? 'en' as const : 'pl' as const;
+    const llm = await llmGenerateDescription({
+      artistName,
+      artistDescription,
+      analysis: analyzed,
+      language: lang,
+      template,
+    });
+    return successResponse({ language: lang, text: llm.text, outline, modelName: llm.modelName, tokensUsed: llm.tokensUsed });
+  } catch (e: unknown) {
+    const err = e as { status?: number; code?: string; message?: string; details?: Record<string, unknown> } | undefined;
+    if (err?.code === 'ENV_MISSING') {
+      return apiError(500, 'ENV_MISSING', err?.message || 'Missing environment configuration', err?.details, requestId);
+    }
+    if (err?.status === 429) {
+      return apiError(429, 'RATE_LIMIT', 'Too many requests to LLM. Please try again later.', { upstream: 'LLM' }, requestId);
+    }
+    const message = err?.message || 'Upstream LLM error';
+    return apiError(502, 'LLM_ERROR', message, err?.details, requestId);
+  }
 }

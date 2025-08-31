@@ -1,5 +1,5 @@
 import type { ArtistFormValue } from '@/components/ArtistForm';
-import type { AudioAnalysisResult } from '../typedSession';
+import type { AnalysisResult } from '@/lib/types/analysis';
 
 type GenerateSuccess = {
   language: string;
@@ -48,7 +48,7 @@ function mapApiErrorToMessage(err: unknown): string {
 
 export async function generateDescription(
   form: ArtistFormValue,
-  analysis: AudioAnalysisResult,
+  analysis: AnalysisResult,
   opts?: { signal?: AbortSignal; language?: string; template?: string }
 ): Promise<string> {
   const payload = {

@@ -70,4 +70,44 @@ describe('API /api/audio/generate', () => {
     expect(res.status).toBe(400);
     expect(typeof err.error.requestId).toBe('string');
   });
+
+  it('maps LLM 429 to RATE_LIMIT ApiError', async () => {
+    jest.useFakeTimers();
+    const headerMap = new Map<string, string>([
+      ['content-type', 'application/json'],
+      ['x-real-ip', '127.0.0.1'],
+    ]);
+    // Force the first OpenAI call to respond with 429
+    const fetchMock = (global as unknown as { fetch: jest.Mock }).fetch;
+    const make429 = async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : (input as URL).toString();
+      if (url.includes('/v1/chat/completions')) {
+        return { ok: false, status: 429, text: async () => 'Too Many Requests' } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({}) } as Response;
+    };
+    // Exhaust retry attempts (3 attempts total)
+    fetchMock.mockImplementationOnce(make429);
+    fetchMock.mockImplementationOnce(make429);
+    fetchMock.mockImplementationOnce(make429);
+
+    const payload = {
+      artistName: 'LLM429',
+      artistDescription: 'x'.repeat(60),
+      language: 'pl',
+      analysis: { id: 'job-2', provider: 'stub', data: {} },
+    };
+    const req = {
+      headers: { get: (k: string) => headerMap.get(k.toLowerCase()) ?? null },
+      json: async () => payload,
+    };
+    const promise = POST(req as unknown);
+    await jest.runOnlyPendingTimersAsync();
+    await jest.runOnlyPendingTimersAsync();
+    const res = await promise;
+    const body = (await res.json()) as { error: { code: string } };
+    expect(res.status).toBe(429);
+    expect(body.error.code).toBe('RATE_LIMIT');
+    jest.useRealTimers();
+  });
 });

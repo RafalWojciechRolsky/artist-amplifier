@@ -3,6 +3,9 @@ export function getServerEnv() {
   return {
     MUSIC_AI_API_KEY: process.env.MUSIC_AI_API_KEY ?? '',
     MUSIC_AI_WORKFLOW_ANALYZE: process.env.MUSIC_AI_WORKFLOW_ANALYZE ?? '',
+    LLM_API_KEY: process.env.LLM_API_KEY ?? '',
+    LLM_MODEL: process.env.LLM_MODEL ?? '',
+    LLM_SYSTEM_PROMPT: process.env.LLM_SYSTEM_PROMPT ?? '',
   } as const;
 }
 

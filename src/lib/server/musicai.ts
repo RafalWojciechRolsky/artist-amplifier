@@ -1,12 +1,7 @@
 import MusicAi from '@music.ai/sdk';
 import { assertServerEnv, getServerEnv } from './env';
 
-export type AudioAnalysis = {
-	durationSec: number;
-	bpm?: number;
-	musicalKey?: string;
-	energy?: number;
-};
+
 
 // Reasonable server wait window (under common serverless 60s limits)
 const DEFAULT_WAIT_TIMEOUT_MS = 55_000;
@@ -49,35 +44,6 @@ function shouldRetry(e: unknown): { retry: boolean; status?: number } {
 	return { retry: false, status };
 }
 
-function mapResultToAnalysis(
-	result: Record<string, unknown> | null | undefined
-): AudioAnalysis {
-	// Accept flexible field names from workflow outputs
-	const r = (result ?? {}) as Record<string, unknown>;
-	const num = (v: unknown): number | undefined => {
-		if (typeof v === 'number' && Number.isFinite(v)) return v;
-		if (typeof v === 'string' && !isNaN(Number(v))) return Number(v);
-		return undefined;
-	};
-	const str = (v: unknown): string | undefined =>
-		typeof v === 'string' ? v : undefined;
-
-	const durationSec =
-		num(r['durationSec'] ?? r['duration'] ?? r['lengthSec']) ?? 0;
-	const bpm = num(r['bpm'] ?? r['tempo']);
-	const musicalKey = str(r['musicalKey'] ?? r['key'] ?? r['tonality']);
-	const energy = num(r['energy'] ?? r['intensity']);
-
-	const mapped: AudioAnalysis = { durationSec, bpm, musicalKey, energy };
-	return mapped;
-}
-
-// Exported pure mapper for external callers (e.g., API route transformers)
-export function mapRawToAudioAnalysis(
-	raw: Record<string, unknown> | null | undefined
-): AudioAnalysis {
-	return mapResultToAnalysis(raw);
-}
 
 /**
  * Analyze an audio file via Music.ai workflow.
@@ -116,37 +82,6 @@ async function waitWithTimeout(
 	return result;
 }
 
-export async function waitForJobResult(
-	jobId: string,
-	opts?: { waitTimeoutMs?: number }
-): Promise<AudioAnalysis | 'TIMEOUT'> {
-	assertServerEnv();
-	const Ctor = MusicAi as unknown as MusicAiCtor;
-	const env = getServerEnv();
-	const musicAi = new Ctor({ apiKey: env.MUSIC_AI_API_KEY });
-	const job = await waitWithTimeout(
-		musicAi,
-		jobId,
-		opts?.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS
-	);
-	if (job === 'TIMEOUT') return 'TIMEOUT';
-	if (job?.status !== 'SUCCEEDED') {
-		throw new MusicAiIntegrationError(
-			502,
-			'MUSIC_AI_JOB_FAILED',
-			'Music.ai job failed',
-			{ jobId, error: job?.error }
-		);
-	}
-	return mapResultToAnalysis(
-		job.result as Record<string, unknown> | null | undefined
-	);
-}
-
-/**
- * Fetch the RAW result of a Music.ai job (no mapping). Useful when callers
- * need to transform the provider payload into a richer domain object.
- */
 export async function waitForJobRawResult(
 	jobId: string,
 	opts?: { waitTimeoutMs?: number }
@@ -284,11 +219,28 @@ export async function analyzeAudioRaw(
 	);
 }
 
-export async function analyzeAudio(
-	filePath: string,
+export async function waitForJobResult(
+	jobId: string,
 	opts?: { waitTimeoutMs?: number }
-): Promise<AudioAnalysis> {
-	// Reuse the raw variant to avoid duplicate jobs, then map locally
-	const raw = await analyzeAudioRaw(filePath, opts);
-	return mapResultToAnalysis(raw);
+): Promise<'TIMEOUT' | never> {
+	assertServerEnv();
+	const Ctor = MusicAi as unknown as MusicAiCtor;
+	const env = getServerEnv();
+	const musicAi = new Ctor({ apiKey: env.MUSIC_AI_API_KEY });
+	const job = await waitWithTimeout(
+		musicAi,
+		jobId,
+		opts?.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS
+	);
+	if (job === 'TIMEOUT') return 'TIMEOUT';
+	if (job?.status !== 'SUCCEEDED') {
+		throw new MusicAiIntegrationError(
+			502,
+			'MUSIC_AI_JOB_FAILED',
+			'Music.ai job failed',
+			{ jobId, error: job?.error }
+		);
+	}
+	// Legacy mapped variant removed. Prefer waitForJobRawResult + transformer.
+	throw new MusicAiIntegrationError(500, 'LEGACY_REMOVED', 'Mapped job result is removed; use waitForJobRawResult');
 }

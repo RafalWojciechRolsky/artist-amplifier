@@ -1,6 +1,6 @@
 'use client';
 
-import type { AudioAnalysisResult } from './typedSession';
+import type { AnalysisResult } from '@/lib/types/analysis';
 
 // Server validation endpoint helper
 export type ValidateAudioResult = { ok: true } | { ok: false; error: string };
@@ -27,7 +27,7 @@ export async function validateAudioFile(
 export async function analyzeAudio(
 	file: File,
 	opts?: { signal?: AbortSignal }
-): Promise<AudioAnalysisResult> {
+): Promise<AnalysisResult> {
 	const { signal } = opts ?? {};
 
 	// Build multipart form data
@@ -110,7 +110,7 @@ export async function analyzeAudio(
 				);
 			}
 			if (r.ok) {
-				const ready = (await r.json()) as AudioAnalysisResult;
+				const ready = (await r.json()) as AnalysisResult;
 				return ready;
 			}
 			if (r.status === 202) {
@@ -146,6 +146,6 @@ export async function analyzeAudio(
 	}
 
 	// Parse the response
-	const result = (await res.json()) as AudioAnalysisResult;
+	const result = (await res.json()) as AnalysisResult;
 	return result;
 }
