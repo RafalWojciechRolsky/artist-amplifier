@@ -29,14 +29,14 @@ type ApiError = {
   };
 };
 
-function apiError(status: number, code: string, message: string, details?: Record<string, unknown>) {
+function apiError(status: number, code: string, message: string, details: Record<string, unknown> | undefined, requestId: string) {
   const body: ApiError = {
     error: {
       code,
       message,
       details,
       timestamp: new Date().toISOString(),
-      requestId: randomUUID(),
+      requestId,
     },
   };
   return NextResponse.json(body, { status });
@@ -77,19 +77,19 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
 }
 
-async function parseAndValidateJson(req: NextRequest): Promise<ParsedJsonOk | ParsedJsonErr> {
+async function parseAndValidateJson(req: NextRequest, requestId: string): Promise<ParsedJsonOk | ParsedJsonErr> {
   const contentType = req.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("application/json")) {
-    return { ok: false, res: apiError(400, "BAD_CONTENT_TYPE", "Expected application/json") };
+    return { ok: false, res: apiError(400, "BAD_CONTENT_TYPE", "Expected application/json", undefined, requestId) };
   }
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return { ok: false, res: apiError(400, "BAD_REQUEST", "Invalid JSON body") };
+    return { ok: false, res: apiError(400, "BAD_REQUEST", "Invalid JSON body", undefined, requestId) };
   }
   if (!isRecord(body)) {
-    return { ok: false, res: apiError(400, "BAD_REQUEST", "Invalid JSON body") };
+    return { ok: false, res: apiError(400, "BAD_REQUEST", "Invalid JSON body", undefined, requestId) };
   }
 
   const artistName = String((body.artistName ?? '').toString()).trim();
@@ -100,7 +100,7 @@ async function parseAndValidateJson(req: NextRequest): Promise<ParsedJsonOk | Pa
   const analysis = body.analysis as GeneratePayload['analysis'] | undefined;
 
   if (!artistName) {
-    return { ok: false, res: apiError(400, "INVALID_ARTIST_NAME", "artistName is required") };
+    return { ok: false, res: apiError(400, "INVALID_ARTIST_NAME", "artistName is required", undefined, requestId) };
   }
   if (artistDescription.length < 50 || artistDescription.length > 1000) {
     return {
@@ -109,11 +109,11 @@ async function parseAndValidateJson(req: NextRequest): Promise<ParsedJsonOk | Pa
         min: 50,
         max: 1000,
         length: artistDescription.length,
-      }),
+      }, requestId),
     };
   }
   if (!analysis || !isRecord(analysis) || !isRecord(analysis.data)) {
-    return { ok: false, res: apiError(400, "MISSING_ANALYSIS", "Missing prior analysis result in request body") };
+    return { ok: false, res: apiError(400, "MISSING_ANALYSIS", "Missing prior analysis result in request body", undefined, requestId) };
   }
 
   return { ok: true, data: { artistName, artistDescription, language, template, analysis } };
@@ -150,14 +150,15 @@ function determineMood(energy: number | string | undefined): string {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = randomUUID();
   // Rate limit
   const ip = getClientIp(req);
   if (!rateLimit(String(ip))) {
-    return apiError(429, "RATE_LIMIT", "Too many requests. Please try again later.");
+    return apiError(429, "RATE_LIMIT", "Too many requests. Please try again later.", undefined, requestId);
   }
 
   // Parse and validate JSON
-  const parsed = await parseAndValidateJson(req);
+  const parsed = await parseAndValidateJson(req, requestId);
   if (!parsed.ok) return parsed.res;
   const { artistName, artistDescription, language, template, analysis } = parsed.data;
 
@@ -178,8 +179,8 @@ export async function POST(req: NextRequest) {
 
   try {
     if (!process.env.JEST_WORKER_ID) {
-      console.debug('[audio/generate] received analysis ->', data);
-      console.debug('[audio/generate] derived mood <-', energyHint, '=>', mood);
+      console.debug('[audio/generate]', requestId, 'received analysis ->', data);
+      console.debug('[audio/generate]', requestId, 'derived mood <-', energyHint, '=>', mood);
     }
   } catch {
     // ignore logging errors

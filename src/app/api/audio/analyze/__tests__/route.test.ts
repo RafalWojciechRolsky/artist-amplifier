@@ -1,9 +1,9 @@
-import { analyzeAudio } from '@/lib/server/musicai';
+import { analyzeAudioRaw } from '@/lib/server/musicai';
 import { NextRequest } from 'next/server';
 
 // Mock the dependencies
 jest.mock('@/lib/server/musicai', () => ({
-  analyzeAudio: jest.fn(),
+  analyzeAudioRaw: jest.fn(),
   MusicAiIntegrationError: class MusicAiIntegrationError extends Error {
     status: number;
     code: string;
@@ -50,12 +50,23 @@ describe('Audio analyze API', () => {
   });
 
   it('should properly analyze audio files', async () => {
-    // Setup mock response for successful analysis
-    (analyzeAudio as jest.Mock).mockResolvedValueOnce({
-      durationSec: 180,
-      bpm: 128,
-      energy: 0.8,
-      key: 'C#'
+    // Setup mock response for successful analysis (raw shape from music.ai)
+    (analyzeAudioRaw as jest.Mock).mockResolvedValueOnce({
+      Mood: ['energetic'],
+      Genre: ['EDM'],
+      Subgenre: ['House'],
+      Instruments: ['Synth'],
+      Movement: [],
+      Energy: 'High',
+      Emotion: 'Joy',
+      Language: 'English',
+      'Root Key': 'C#',
+      'Time signature': '4/4',
+      'Voice gender': 'male',
+      'Voice presence': 'present',
+      'Musical era': 'Modern',
+      Duration: 180,
+      Cover: 'http://example.com/cover.jpg'
     });
 
     // Create mock request
@@ -76,8 +87,13 @@ describe('Audio analyze API', () => {
     // Verify the response
     expect(response.status).toBe(200);
     expect(result.provider).toBe('music.ai');
-    expect(result.data.tempo).toBe(128);
-    expect(result.data.mood).toBe('energetic');
+    expect(result.data.analyzedTrack).toBeDefined();
+    expect(result.data.analyzedTrack.moods).toContain('energetic');
+
+    // Ensure temp file cleanup was attempted
+    const { unlink } = jest.requireMock('node:fs/promises');
+    expect(unlink).toHaveBeenCalledTimes(1);
+    expect(typeof (unlink as jest.Mock).mock.calls[0][0]).toBe('string');
   });
 
   it('should handle missing file error', async () => {
@@ -95,6 +111,7 @@ describe('Audio analyze API', () => {
     // Verify error response
     expect(response.status).toBe(400);
     expect(result.error.code).toBe('MISSING_FILE');
+    expect(typeof result.error.requestId).toBe('string');
   });
 
   it('should handle music.ai service errors', async () => {
@@ -102,7 +119,7 @@ describe('Audio analyze API', () => {
     const { MusicAiIntegrationError } = jest.requireMock('@/lib/server/musicai');
     
     // Setup mock for musicai error
-    (analyzeAudio as jest.Mock).mockRejectedValueOnce(
+    (analyzeAudioRaw as jest.Mock).mockRejectedValueOnce(
       new MusicAiIntegrationError(503, 'MUSIC_AI_SERVICE_UNAVAILABLE', 'Service unavailable')
     );
 
@@ -124,5 +141,6 @@ describe('Audio analyze API', () => {
     // Verify error response
     expect(response.status).toBe(503);
     expect(result.error.code).toBe('MUSIC_AI_SERVICE_UNAVAILABLE');
+    expect(typeof result.error.requestId).toBe('string');
   });
 });

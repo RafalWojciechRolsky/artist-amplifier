@@ -122,6 +122,14 @@ export default function Home() {
 		}
 	}, [state.generated]);
 
+	React.useEffect(() => {
+		// Ten kod wykona się za każdym razem, gdy stan się zmieni.
+		// Warunek `if` zapewnia, że logujemy tylko w interesującym nas momencie.
+		if (state.status === 'ready' && state.analysisResult) {
+			console.log('[audio/analyze] full analyzed track after update ->', state);
+		}
+	}, [state]);
+
 	async function handleSubmit(value: ArtistFormValue) {
 		// Ensure latest form is persisted as part of submit flow
 		artistFormStorage.set(value);
@@ -150,9 +158,9 @@ export default function Home() {
 			// const full =
 			// 	(result?.data as Record<string, unknown>)?.analyzedTrack ??
 			// 	result?.data;
-			console.log('[audio/analyze] full analyzed track ->', state);
 			dispatch({ type: 'SET_ANALYSIS_RESULT', payload: result });
 			dispatch({ type: 'SET_STATUS', payload: 'ready' });
+			console.log('[audio/analyze] full analyzed track ->', state);
 		} catch (err: unknown) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
 				// Stay idle after cancel
@@ -277,40 +285,39 @@ export default function Home() {
 							)}
 							{state.status === 'ready' && state.analysisResult && (
 								<div
-									className='mt-2 rounded-md border aa-border p-3 text-sm'
+									className='mt-2 rounded-md border aa-border p-4 text-sm flex items-center gap-3'
 									data-testid='analysis-summary'
 								>
-									<p className='font-medium aa-heading-secondary mb-1'>
-										Wynik analizy
-									</p>
-									{(() => {
-										const d = state.analysisResult?.data as {
-											tempo?: number;
-											mood?: string;
-											fileName?: string;
-											size?: number;
-											type?: string;
-										};
-										const sizeKb = d?.size ? Math.round(d.size / 1024) : null;
-										return (
-											<ul className='grid gap-0.5'>
-												<li>
-													<span className='aa-text-secondary'>Tempo:</span>{' '}
-													{d?.tempo ?? '—'}
-												</li>
-												<li>
-													<span className='aa-text-secondary'>Nastrój:</span>{' '}
-													{d?.mood ?? '—'}
-												</li>
-												<li>
-													<span className='aa-text-secondary'>Plik:</span>{' '}
-													{d?.fileName ?? '—'}
-													{sizeKb ? ` (${sizeKb} KB)` : ''}
-													{d?.type ? ` • ${d.type}` : ''}
-												</li>
-											</ul>
-										);
-									})()}
+									<svg
+										className='w-6 h-6 text-green-600 flex-shrink-0'
+										xmlns='http://www.w3.org/2000/svg'
+										fill='none'
+										viewBox='0 0 24 24'
+										strokeWidth={1.5}
+										stroke='currentColor'
+									>
+										<path
+											strokeLinecap='round'
+											strokeLinejoin='round'
+											d='M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+										/>
+									</svg>
+									<div>
+										<p className='font-medium aa-heading-secondary'>
+											Analiza ukończona
+										</p>
+										<p className='aa-text-secondary'>
+											Plik{' '}
+											<strong className='font-medium text-[var(--color-text-primary)]'>
+												{(
+													state.analysisResult?.data as {
+														fileName?: string;
+													}
+												)?.fileName ?? '—'}
+											</strong>{' '}
+											jest gotowy.
+										</p>
+									</div>
 								</div>
 							)}
 						</div>

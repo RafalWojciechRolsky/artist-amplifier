@@ -3,7 +3,7 @@ import { writeFile, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { analyzeAudio, analyzeAudioRaw, mapRawToAudioAnalysis, MusicAiIntegrationError } from '@/lib/server/musicai';
+import { analyzeAudioRaw, MusicAiIntegrationError } from '@/lib/server/musicai';
 import { transformMusicAiRawToAnalyzedTrack } from '@/lib/server/musicaiTransform';
 
 // Simple in-memory rate limiter: max 20 requests per 5 minutes per IP
@@ -49,7 +49,8 @@ function apiError(
 	status: number,
 	code: string,
 	message: string,
-	details?: Record<string, unknown>
+	details: Record<string, unknown> | undefined,
+	requestId: string
 ) {
 	const body: ApiError = {
 		error: {
@@ -57,7 +58,7 @@ function apiError(
 			message,
 			details,
 			timestamp: new Date().toISOString(),
-			requestId: randomUUID(),
+			requestId,
 		},
 	};
 	return NextResponse.json(body, { status });
@@ -114,16 +115,27 @@ function getClientIp(req: NextRequest): string {
 	return String(ip);
 }
 
-async function validateAudioFile(file: File): Promise<NextResponse | null> {
+async function validateAudioFile(
+	file: File,
+	requestId: string
+): Promise<NextResponse | null> {
 	if (!ACCEPT_MIME.has(file.type)) {
 		return apiError(
 			415,
 			'UNSUPPORTED_MEDIA_TYPE',
-			'Only MP3 and WAV files are supported'
+			'Only MP3 and WAV files are supported',
+			undefined,
+			requestId
 		);
 	}
 	if (file.size > MAX_SIZE_BYTES) {
-		return apiError(413, 'PAYLOAD_TOO_LARGE', 'File too large (max 50MB)');
+		return apiError(
+			413,
+			'PAYLOAD_TOO_LARGE',
+			'File too large (max 50MB)',
+			undefined,
+			requestId
+		);
 	}
 	// In Jest/jsdom environment, Blob/File implementations may not fully match
 	// Node/Web APIs for binary slicing/reading; skip deep signature check.
@@ -138,40 +150,63 @@ async function validateAudioFile(file: File): Promise<NextResponse | null> {
 			return apiError(
 				400,
 				'INVALID_CONTENT',
-				'File signature does not match declared type'
+				'File signature does not match declared type',
+				undefined,
+				requestId
 			);
 		}
 	} catch {
-		return apiError(400, 'READ_ERROR', 'Unable to read file header');
+		return apiError(
+			400,
+			'READ_ERROR',
+			'Unable to read file header',
+			undefined,
+			requestId
+		);
 	}
 	return null;
 }
 
 export async function POST(req: NextRequest) {
+	const requestId = randomUUID();
 	// Rate limit
 	const ip = getClientIp(req);
 	if (!rateLimit(String(ip))) {
 		return apiError(
 			429,
 			'RATE_LIMIT',
-			'Too many requests. Please try again later.'
+			'Too many requests. Please try again later.',
+			undefined,
+			requestId
 		);
 	}
 
 	// Expect multipart/form-data
 	const contentType = req.headers.get('content-type') || '';
 	if (!contentType.toLowerCase().includes('multipart/form-data')) {
-		return apiError(400, 'BAD_CONTENT_TYPE', 'Expected multipart/form-data');
+		return apiError(
+			400,
+			'BAD_CONTENT_TYPE',
+			'Expected multipart/form-data',
+			undefined,
+			requestId
+		);
 	}
 
 	const form = await req.formData();
 	const file = form.get('file');
 
 	if (!isFileLike(file)) {
-		return apiError(400, 'MISSING_FILE', "Missing file field 'file'");
+		return apiError(
+			400,
+			'MISSING_FILE',
+			"Missing file field 'file'",
+			undefined,
+			requestId
+		);
 	}
 
-	const fileErr = await validateAudioFile(file as File);
+	const fileErr = await validateAudioFile(file as File, requestId);
 	if (fileErr) return fileErr;
 
 	// Save uploaded file to a temporary path for Music.ai upload
@@ -179,36 +214,30 @@ export async function POST(req: NextRequest) {
 	const tempPath = join(tmpdir(), `aa-${randomUUID()}.${ext}`);
 
 	try {
-		const isTest = process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test';
+		const isTest =
+			process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test';
 		if (!isTest) {
 			const buf = Buffer.from(await blobToArrayBuffer(file));
 			await writeFile(tempPath, buf);
 		}
 
-		// In tests, use analyzeAudio so jest mocks apply; otherwise use raw + transform
-		let analyzedTrack: Awaited<ReturnType<typeof transformMusicAiRawToAnalyzedTrack>> | undefined;
-		const analysis = await (async () => {
-			if (isTest) {
-				return analyzeAudio(tempPath);
-			}
-			const raw = await analyzeAudioRaw(tempPath);
-			analyzedTrack = await transformMusicAiRawToAnalyzedTrack(raw as Record<string, unknown>);
-			return mapRawToAudioAnalysis(raw);
-		})();
-
-		// Derive mood from numeric or string energy
-		const mood = determineMood(analysis.energy ?? analyzedTrack?.energyLevel);
+		// Always fetch RAW result and transform centrally
+		const raw = await analyzeAudioRaw(tempPath);
+		const analyzedTrack = await transformMusicAiRawToAnalyzedTrack(
+			raw as Record<string, unknown>
+		);
 		try {
 			if (!process.env.JEST_WORKER_ID) {
-				console.debug('[audio/analyze] mapped summary ->', analysis);
-				if (analyzedTrack) console.debug('[audio/analyze] full analyzed track ->', analyzedTrack);
-				console.debug('[audio/analyze] derived mood <- energy', analysis.energy ?? analyzedTrack?.energyLevel, '=>', mood);
+				console.debug(
+					'[audio/analyze]',
+					requestId,
+					'analyzed ->',
+					analyzedTrack
+				);
 			}
-		} catch {
-			// ignore logging errors
-		}
+		} catch {}
 
-		// Create expected response format matching the stub for frontend compatibility
+		// Return clean payload for app state
 		return NextResponse.json({
 			id: `${Date.now()}`,
 			provider: 'music.ai',
@@ -216,14 +245,23 @@ export async function POST(req: NextRequest) {
 				fileName: (file as File).name,
 				size: (file as File).size,
 				type: (file as File).type,
-				tempo: analysis.bpm || 120, // Fallback
-				mood,
-				...(analyzedTrack ? { analyzedTrack } : {}),
+				analyzedTrack,
 			},
 		});
 	} catch (e: unknown) {
-		const maybe = e as { name?: string; status?: number; code?: string; message?: string; details?: Record<string, unknown> };
-		if (e instanceof MusicAiIntegrationError || (maybe?.name === 'MusicAiIntegrationError' && typeof maybe.status === 'number' && typeof maybe.code === 'string')) {
+		const maybe = e as {
+			name?: string;
+			status?: number;
+			code?: string;
+			message?: string;
+			details?: Record<string, unknown>;
+		};
+		if (
+			e instanceof MusicAiIntegrationError ||
+			(maybe?.name === 'MusicAiIntegrationError' &&
+				typeof maybe.status === 'number' &&
+				typeof maybe.code === 'string')
+		) {
 			// Special case: initial wait timed out but job was created; instruct client to poll
 			if (
 				maybe.status === 202 &&
@@ -237,12 +275,20 @@ export async function POST(req: NextRequest) {
 					{ status: 202 }
 				);
 			}
-			return apiError(maybe.status ?? 503, maybe.code ?? 'MUSIC_AI_SERVICE_ERROR', maybe.message ?? 'Service error', maybe.details);
+			return apiError(
+				maybe.status ?? 503,
+				maybe.code ?? 'MUSIC_AI_SERVICE_ERROR',
+				maybe.message ?? 'Service error',
+				maybe.details,
+				requestId
+			);
 		}
 		return apiError(
 			502,
 			'MUSIC_AI_BAD_GATEWAY',
-			'Upstream error while analyzing audio'
+			'Upstream error while analyzing audio',
+			undefined,
+			requestId
 		);
 	} finally {
 		// Attempt to cleanup temp file regardless of outcome
@@ -252,23 +298,4 @@ export async function POST(req: NextRequest) {
 			// noop
 		}
 	}
-}
-
-/**
- * Maps energy level (number 0..1 or string like 'high'|'medium'|'low') to mood categories
- */
-function determineMood(energy: number | string | undefined): string {
-    if (energy === undefined) return 'unknown';
-    if (typeof energy === 'number') {
-        if (energy >= 0.8) return 'energetic';
-        if (energy >= 0.6) return 'uplifting';
-        if (energy >= 0.4) return 'balanced';
-        if (energy >= 0.2) return 'relaxed';
-        return 'melancholic';
-    }
-    const s = String(energy).toLowerCase();
-    if (s.includes('very high') || s === 'high' || s.includes('strong')) return 'energetic';
-    if (s === 'medium' || s.includes('moderate') || s.includes('balanced')) return 'uplifting';
-    if (s === 'low' || s.includes('calm') || s.includes('soft')) return 'relaxed';
-    return 'unknown';
 }

@@ -69,15 +69,6 @@ function mapResultToAnalysis(
 	const energy = num(r['energy'] ?? r['intensity']);
 
 	const mapped: AudioAnalysis = { durationSec, bpm, musicalKey, energy };
-	// Server-side debug log so we can see the exact payload shape and mapping
-	try {
-		// Avoid noisy logs in test runs
-		if (!process.env.JEST_WORKER_ID) {
-			console.debug('[music.ai] raw result ->', r);
-		}
-	} catch {
-		// ignore logging errors
-	}
 	return mapped;
 }
 
@@ -204,6 +195,7 @@ export async function analyzeAudioRaw(
 		return {
 			// Basic fields for `mapResultToAnalysis`
 			duration: 225.5,
+			DUPA: 'DUPA',
 			tempo: 125,
 			tonality: 'A#m',
 			intensity: 0.75,
@@ -267,11 +259,6 @@ export async function analyzeAudioRaw(
 				);
 			}
 			const raw = (job.result ?? {}) as Record<string, unknown>;
-			try {
-				if (!process.env.JEST_WORKER_ID) {
-					console.debug('[music.ai] raw result ->', raw);
-				}
-			} catch {}
 			return raw;
 		} catch (e: unknown) {
 			const { retry, status } = shouldRetry(e);

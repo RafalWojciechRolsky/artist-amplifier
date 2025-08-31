@@ -1,27 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import {
     MusicAiIntegrationError,
     waitForJobRawResult,
 } from '@/lib/server/musicai';
 import { transformMusicAiRawToAnalyzedTrack } from '@/lib/server/musicaiTransform';
 
+type ApiError = {
+    error: {
+        code: string;
+        message: string;
+        details?: Record<string, unknown>;
+        timestamp: string;
+        requestId: string;
+    };
+};
+
 function apiError(
     status: number,
     code: string,
     message: string,
-    details?: Record<string, unknown>
+    details: Record<string, unknown> | undefined,
+    requestId: string
 ) {
-    return NextResponse.json(
-        {
-            error: {
-                code,
-                message,
-                details,
-                timestamp: new Date().toISOString(),
-            },
+    const body: ApiError = {
+        error: {
+            code,
+            message,
+            details,
+            timestamp: new Date().toISOString(),
+            requestId,
         },
-        { status }
-    );
+    };
+    return NextResponse.json(body, { status });
 }
 
 // Unified mood mapper accepting numeric 0..1 or string energy levels
@@ -42,9 +53,10 @@ function determineMood(energy: number | string | undefined): string {
 }
 
 export async function GET(req: NextRequest) {
+    const requestId = randomUUID();
     const { searchParams } = new URL(req.url);
     const jobId = searchParams.get('jobId');
-    if (!jobId) return apiError(400, 'MISSING_JOB_ID', 'Missing jobId parameter');
+    if (!jobId) return apiError(400, 'MISSING_JOB_ID', 'Missing jobId parameter', undefined, requestId);
 
     try {
         // Wait a reasonable time window per poll to reduce client churn
@@ -73,7 +85,7 @@ export async function GET(req: NextRequest) {
         const tempo = num((raw as Record<string, unknown>)['bpm'] ?? (raw as Record<string, unknown>)['tempo']) ?? 120;
         try {
             if (!process.env.JEST_WORKER_ID) {
-                console.debug('[audio/analyze/status] energy ->', energyHint, 'derived mood ->', mood);
+                console.debug('[audio/analyze/status]', requestId, 'energy ->', energyHint, 'derived mood ->', mood);
             }
         } catch {
             // ignore logging errors
@@ -93,8 +105,8 @@ export async function GET(req: NextRequest) {
         });
     } catch (e: unknown) {
         if (e instanceof MusicAiIntegrationError) {
-            return apiError(e.status, e.code, e.message, e.details);
+            return apiError(e.status, e.code, e.message, e.details, requestId);
         }
-        return apiError(502, 'MUSIC_AI_BAD_GATEWAY', 'Upstream error while checking job status');
+        return apiError(502, 'MUSIC_AI_BAD_GATEWAY', 'Upstream error while checking job status', undefined, requestId);
     }
 }

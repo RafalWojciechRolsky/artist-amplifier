@@ -14,20 +14,23 @@ type ChordRaw = {
 };
 
 export interface AnalyzedTrack {
-	lyrics: string;
-	chords: ChordInfo[];
-	moods: string[];
-	genres: string[];
-	instruments: string[];
-	movements: string[];
-	energyLevel: string;
-	emotion: string;
-	language: string;
-	key: string;
-	timeSignature: string;
-	voiceGender: string;
-	voicePresence: string;
-	musicalEra: string;
+	lyrics: string; // Lyrics
+	chords: ChordInfo[]; // Chords structure
+	moods: string[]; // Mood
+	genres: string[]; // Genre
+	subgenres: string[]; // Subgenre
+	instruments: string[]; // Instruments
+	movements: string[]; // Movement
+	energyLevel: string; // Energy
+	emotion: string; // Emotion
+	language: string; // Language
+	key: string; // Root Key
+	timeSignature: string; // Time signature
+	voiceGender: string; // Voice gender
+	voicePresence: string; // Voice presence
+	musicalEra: string; // Musical era
+	duration: number; // Duration (seconds)
+	cover: string; // Cover (url)
 }
 
 function asString(v: unknown): string {
@@ -51,6 +54,14 @@ function toArrayOfStrings(v: unknown): string[] {
 			.filter(Boolean);
 	}
 	return [];
+}
+
+function asNumber(v: unknown): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) {
+    return Number(v);
+  }
+  return 0;
 }
 
 async function fetchJsonArray<T = unknown>(
@@ -100,12 +111,8 @@ export async function transformMusicAiRawToAnalyzedTrack(
 	raw: Record<string, unknown>
 ): Promise<AnalyzedTrack> {
 	const moods = toArrayOfStrings(raw['Mood']);
-	const genres = Array.from(
-		new Set<string>([
-			...toArrayOfStrings(raw['Genre']),
-			...toArrayOfStrings(raw['Subgenre']),
-		])
-	);
+	const genres = toArrayOfStrings(raw['Genre']);
+	const subgenres = toArrayOfStrings(raw['Subgenre']);
 	const instruments = toArrayOfStrings(raw['Instruments']);
 	const movements = toArrayOfStrings(raw['Movement']);
 
@@ -114,9 +121,11 @@ export async function transformMusicAiRawToAnalyzedTrack(
 	const language = asString(raw['Language']);
 	const key = asString(raw['Root Key']);
 	const timeSignature = asString(raw['Time signature']);
-	const voiceGender = asString(raw['Voide gender']);
+	const voiceGender = asString(raw['Voice gender']);
 	const voicePresence = asString(raw['Voice presence']);
 	const musicalEra = asString(raw['Musical era']);
+	const duration = asNumber(raw['Duration']);
+	const cover = asString((raw as Record<string, unknown>)['Cover'] ?? (raw as Record<string, unknown>)['Covert']);
 
 	const lyricsUrl = asString(raw['Lyrics']);
 	const chordsUrl = asString(raw['Chords structure']);
@@ -134,6 +143,7 @@ export async function transformMusicAiRawToAnalyzedTrack(
 		chords,
 		moods,
 		genres,
+		subgenres,
 		instruments,
 		movements,
 		energyLevel,
@@ -144,5 +154,7 @@ export async function transformMusicAiRawToAnalyzedTrack(
 		voiceGender,
 		voicePresence,
 		musicalEra,
+		duration,
+		cover,
 	};
 }

@@ -54,4 +54,20 @@ describe('API /api/audio/generate', () => {
     expect(json.outline[1]).toContain('tempo=');
     expect(json.outline[1]).toContain('nastrój=');
   });
+
+  it('returns requestId on validation error (bad content-type)', async () => {
+    const headerMap = new Map<string, string>([
+      ['content-type', 'text/plain'],
+      ['x-real-ip', '127.0.0.1'],
+    ]);
+    const req = {
+      headers: { get: (k: string) => headerMap.get(k.toLowerCase()) ?? null },
+      json: async () => ({}),
+    };
+    const res = await POST(req as unknown);
+    const body = (await res.json()) as unknown;
+    const err = body as { error: { requestId?: unknown } };
+    expect(res.status).toBe(400);
+    expect(typeof err.error.requestId).toBe('string');
+  });
 });
