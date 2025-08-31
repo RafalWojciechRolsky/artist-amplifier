@@ -10,12 +10,14 @@
     "test": "jest --config=jest.config.mjs"
   },
   "dependencies": {
+    "@music.ai/sdk": "^1.0.21",
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
