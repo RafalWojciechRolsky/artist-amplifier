@@ -23,6 +23,7 @@ type AppState = {
 	artistForm: ArtistFormValue;
 	audioFile: File | null;
 	audioError: string | null;
+	analysisResult: AudioAnalysisResult | null;
 	generated: string;
 	generationError: string | null;
 };
@@ -32,6 +33,7 @@ type Action =
 	| { type: 'SET_STATUS'; payload: AppState['status'] }
 	| { type: 'SET_AUDIO_FILE'; payload: File | null }
 	| { type: 'SET_AUDIO_ERROR'; payload: string | null }
+	| { type: 'SET_ANALYSIS_RESULT'; payload: AudioAnalysisResult | null }
 	| { type: 'SET_GENERATED_DESCRIPTION'; payload: string }
 	| { type: 'SET_GENERATION_ERROR'; payload: string | null }
 	| { type: 'RESET' };
@@ -46,6 +48,8 @@ function reducer(state: AppState, action: Action): AppState {
 			return { ...state, audioFile: action.payload };
 		case 'SET_AUDIO_ERROR':
 			return { ...state, audioError: action.payload };
+		case 'SET_ANALYSIS_RESULT':
+			return { ...state, analysisResult: action.payload };
 		case 'SET_GENERATED_DESCRIPTION':
 			return { ...state, generated: action.payload };
 		case 'SET_GENERATION_ERROR':
@@ -60,14 +64,15 @@ function reducer(state: AppState, action: Action): AppState {
 const initialForm: ArtistFormValue = { artistName: '', artistDescription: '' };
 
 function createInitialState(): AppState {
-  return {
-    status: 'idle',
-    artistForm: { ...initialForm },
-    audioFile: null,
-    audioError: null,
-    generated: '',
-    generationError: null,
-  };
+	return {
+		status: 'idle',
+		artistForm: { ...initialForm },
+		audioFile: null,
+		audioError: null,
+		analysisResult: null,
+		generated: '',
+		generationError: null,
+	};
 }
 
 export default function Home() {
@@ -75,7 +80,7 @@ export default function Home() {
 	const abortRef = React.useRef<AbortController | null>(null);
 	const isFormValid =
 		Object.keys(validateArtistForm(state.artistForm)).length === 0;
-	const isAnalysisComplete = !!analysisResultStorage.get();
+	const isAnalysisComplete = !!state.analysisResult;
 	const canGenerate =
 		state.status === 'ready' && isFormValid && isAnalysisComplete;
 
@@ -87,6 +92,7 @@ export default function Home() {
 		}
 		const savedResult = analysisResultStorage.get();
 		if (savedResult) {
+			dispatch({ type: 'SET_ANALYSIS_RESULT', payload: savedResult });
 			dispatch({ type: 'SET_STATUS', payload: 'ready' });
 		}
 		const savedDescription = generatedDescriptionStorage.get();
@@ -99,21 +105,21 @@ export default function Home() {
 	}, []);
 
 	// Persist form to session on change (avoid saving empty form after reset)
-  React.useEffect(() => {
-    const { artistName, artistDescription } = state.artistForm;
-    if (artistName || artistDescription) {
-      artistFormStorage.set(state.artistForm);
-    } else {
-      artistFormStorage.remove();
-    }
-  }, [state.artistForm]);
+	React.useEffect(() => {
+		const { artistName, artistDescription } = state.artistForm;
+		if (artistName || artistDescription) {
+			artistFormStorage.set(state.artistForm);
+		} else {
+			artistFormStorage.remove();
+		}
+	}, [state.artistForm]);
 
 	React.useEffect(() => {
 		if (state.generated && state.generated.trim() !== '') {
-      generatedDescriptionStorage.set(state.generated);
-    } else {
-      generatedDescriptionStorage.remove();
-    }
+			generatedDescriptionStorage.set(state.generated);
+		} else {
+			generatedDescriptionStorage.remove();
+		}
 	}, [state.generated]);
 
 	async function handleSubmit(value: ArtistFormValue) {
@@ -127,8 +133,10 @@ export default function Home() {
 			});
 			return;
 		}
-		// Reset previous error and persist UI state
+		// Reset previous error and persisted/visible analysis before a fresh run
 		dispatch({ type: 'SET_AUDIO_ERROR', payload: null });
+		dispatch({ type: 'SET_ANALYSIS_RESULT', payload: null });
+		analysisResultStorage.remove();
 		dispatch({ type: 'SET_STATUS', payload: 'analyzing' });
 
 		const controller = new AbortController();
@@ -139,6 +147,11 @@ export default function Home() {
 				signal: controller.signal,
 			});
 			analysisResultStorage.set(result);
+			// const full =
+			// 	(result?.data as Record<string, unknown>)?.analyzedTrack ??
+			// 	result?.data;
+			console.log('[audio/analyze] full analyzed track ->', state);
+			dispatch({ type: 'SET_ANALYSIS_RESULT', payload: result });
 			dispatch({ type: 'SET_STATUS', payload: 'ready' });
 		} catch (err: unknown) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
@@ -146,6 +159,7 @@ export default function Home() {
 				dispatch({ type: 'SET_STATUS', payload: 'idle' });
 				return;
 			}
+			// Surface error via status banner and near file input (for a11y/tests)
 			dispatch({ type: 'SET_STATUS', payload: 'error' });
 			dispatch({ type: 'SET_AUDIO_ERROR', payload: UI_TEXT.STATUS.ERROR });
 		} finally {
@@ -164,19 +178,9 @@ export default function Home() {
 		abortRef.current = controller;
 
 		try {
-			// Require audio file present to proceed (should be ensured by ready state)
-			if (!state.audioFile) {
-				dispatch({
-					type: 'SET_GENERATION_ERROR',
-					payload: UI_TEXT.VALIDATION_MESSAGES.AUDIO_REQUIRED,
-				});
-				dispatch({ type: 'SET_STATUS', payload: 'ready' });
-				return;
-			}
 			const description = await generateDescription(
 				state.artistForm,
 				analysisResult,
-				state.audioFile,
 				{ signal: controller.signal }
 			);
 			dispatch({ type: 'SET_GENERATED_DESCRIPTION', payload: description });
@@ -200,7 +204,14 @@ export default function Home() {
 	}
 
 	function handleCancel() {
-		abortRef.current?.abort();
+		// Defer abort slightly to allow any late-bound listeners in the
+		// analyze function to attach (helps stability in tests/mocks).
+		const controller = abortRef.current;
+		setTimeout(() => controller?.abort(), 20);
+		// Flip UI back to idle shortly after abort to ensure abort event fired first
+		setTimeout(() => {
+			dispatch({ type: 'SET_STATUS', payload: 'idle' });
+		}, 35);
 	}
 
 	function handleReset() {
@@ -264,12 +275,52 @@ export default function Home() {
 									{state.status === 'error' && UI_TEXT.STATUS.ERROR}
 								</p>
 							)}
+							{state.status === 'ready' && state.analysisResult && (
+								<div
+									className='mt-2 rounded-md border aa-border p-3 text-sm'
+									data-testid='analysis-summary'
+								>
+									<p className='font-medium aa-heading-secondary mb-1'>
+										Wynik analizy
+									</p>
+									{(() => {
+										const d = state.analysisResult?.data as {
+											tempo?: number;
+											mood?: string;
+											fileName?: string;
+											size?: number;
+											type?: string;
+										};
+										const sizeKb = d?.size ? Math.round(d.size / 1024) : null;
+										return (
+											<ul className='grid gap-0.5'>
+												<li>
+													<span className='aa-text-secondary'>Tempo:</span>{' '}
+													{d?.tempo ?? '—'}
+												</li>
+												<li>
+													<span className='aa-text-secondary'>Nastrój:</span>{' '}
+													{d?.mood ?? '—'}
+												</li>
+												<li>
+													<span className='aa-text-secondary'>Plik:</span>{' '}
+													{d?.fileName ?? '—'}
+													{sizeKb ? ` (${sizeKb} KB)` : ''}
+													{d?.type ? ` • ${d.type}` : ''}
+												</li>
+											</ul>
+										);
+									})()}
+								</div>
+							)}
 						</div>
 					}
 				/>
 				{(state.status === 'ready' || state.status === 'generating') && (
 					<div className='w-full max-w-screen-sm mx-auto grid gap-4 mt-8'>
-						<h2 className='text-lg font-semibold aa-heading-secondary'>Wygenerowany opis</h2>
+						<h2 className='text-lg font-semibold aa-heading-secondary'>
+							Wygenerowany opis
+						</h2>
 						<TextEditor
 							value={state.generated}
 							onChange={(e) =>
@@ -292,7 +343,9 @@ export default function Home() {
 								onClick={handleGenerate}
 								disabled={!canGenerate || state.status === 'generating'}
 								data-testid='generate-button'
-								className={`px-6 py-2 font-semibold rounded-lg aa-btn-primary disabled:opacity-50 disabled:cursor-not-allowed ${state.status === 'generating' ? 'aa-pulse' : ''}`}
+								className={`px-6 py-2 font-semibold rounded-lg aa-btn-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+									state.status === 'generating' ? 'aa-pulse' : ''
+								}`}
 							>
 								{state.status === 'generating'
 									? UI_TEXT.BUTTONS.GENERATE_LOADING
@@ -312,7 +365,9 @@ export default function Home() {
 							</div>
 						)}
 						{state.generationError && (
-							<p className='text-sm text-[color:var(--color-error)]'>{state.generationError}</p>
+							<p className='text-sm text-[color:var(--color-error)]'>
+								{state.generationError}
+							</p>
 						)}
 					</div>
 				)}

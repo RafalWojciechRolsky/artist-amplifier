@@ -10,10 +10,10 @@ describe('generateDescription', () => {
       mood: 'energetic',
     },
   };
-  const mockFile = new File([new Blob(['dummy audio'])], 'test.mp3', { type: 'audio/mpeg' });
+  // No file is needed for the JSON-based endpoint
 
   it('should generate a description successfully', async () => {
-    const description = await generateDescription(mockForm, mockAnalysis, mockFile);
+    const description = await generateDescription(mockForm, mockAnalysis);
     expect(description).toContain('Test Artist');
     expect(description).toContain('120');
     expect(description).toContain('energetic');
@@ -21,7 +21,7 @@ describe('generateDescription', () => {
 
   it('should abort the request when the signal is aborted', async () => {
     const controller = new AbortController();
-    const promise = generateDescription(mockForm, mockAnalysis, mockFile, { signal: controller.signal });
+    const promise = generateDescription(mockForm, mockAnalysis, { signal: controller.signal });
     controller.abort();
     await expect(promise).rejects.toThrow('Aborted');
   });

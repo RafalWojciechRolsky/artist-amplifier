@@ -48,25 +48,23 @@ function mapApiErrorToMessage(err: unknown): string {
 
 export async function generateDescription(
   form: ArtistFormValue,
-  _analysis: AudioAnalysisResult,
-  file: File,
+  analysis: AudioAnalysisResult,
   opts?: { signal?: AbortSignal; language?: string; template?: string }
 ): Promise<string> {
-  // Build multipart form data
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('artistName', form.artistName);
-  formData.append('artistDescription', form.artistDescription);
-  formData.append('language', opts?.language ?? 'pl');
-  if (opts?.template) {
-    formData.append('template', opts.template);
-  }
+  const payload = {
+    artistName: form.artistName,
+    artistDescription: form.artistDescription,
+    language: opts?.language ?? 'pl',
+    template: opts?.template,
+    analysis,
+  } as const;
 
   let res: Response;
   try {
     res = await fetch('/api/audio/generate', {
       method: 'POST',
-      body: formData,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
       signal: opts?.signal,
     });
   } catch (e: unknown) {

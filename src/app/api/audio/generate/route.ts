@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 
 // Basic in-memory rate limiter: max 20 requests per 5 minutes per IP
 const WINDOW_MS = 5 * 60 * 1000;
@@ -16,9 +17,7 @@ function rateLimit(key: string) {
   return true;
 }
 
-// Limits aligned with FE validation
-const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
-const ACCEPT_MIME = new Set(["audio/mpeg", "audio/wav"]);
+// NOTE: Generation no longer accepts files; it uses prior analysis results.
 
 type ApiError = {
   error: {
@@ -37,32 +36,10 @@ function apiError(status: number, code: string, message: string, details?: Recor
       message,
       details,
       timestamp: new Date().toISOString(),
-      requestId: crypto.randomUUID(),
+      requestId: randomUUID(),
     },
   };
   return NextResponse.json(body, { status });
-}
-
-async function readHead(file: File, n = 12): Promise<Uint8Array> {
-  const slice = file.slice(0, n);
-  const buf = await slice.arrayBuffer();
-  return new Uint8Array(buf);
-}
-
-function looksLikeMP3(head: Uint8Array): boolean {
-  // MP3 may start with ID3 tag ("ID3") or MPEG frame sync 0xFF 0xE0 mask
-  if (head.length >= 3 && head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) return true; // "ID3"
-  if (head.length >= 2 && head[0] === 0xff && (head[1] & 0xe0) === 0xe0) return true; // frame sync
-  return false;
-}
-
-function looksLikeWAV(head: Uint8Array): boolean {
-  // RIFF....WAVE
-  if (head.length >= 12) {
-    const str = new TextDecoder().decode(head);
-    return str.startsWith("RIFF") && str.slice(8, 12) === "WAVE";
-  }
-  return false;
 }
 
 function getClientIp(req: NextRequest): string {
@@ -71,57 +48,56 @@ function getClientIp(req: NextRequest): string {
   return String(ip);
 }
 
-type ParsedFormOk = {
+type GeneratePayload = {
+  artistName: string;
+  artistDescription: string;
+  language?: string;
+  template?: string;
+  analysis: {
+    id: string;
+    provider: string;
+    data: Record<string, unknown>;
+  };
+};
+
+type ParsedJsonOk = {
   ok: true;
   data: {
-    file: File;
     artistName: string;
     artistDescription: string;
     language: string;
     template?: string;
+    analysis: GeneratePayload['analysis'];
   };
 };
 
-type ParsedFormErr = { ok: false; res: NextResponse };
+type ParsedJsonErr = { ok: false; res: NextResponse };
 
-async function validateAudioFile(file: File): Promise<NextResponse | null> {
-  if (!ACCEPT_MIME.has(file.type)) {
-    return apiError(415, "UNSUPPORTED_MEDIA_TYPE", "Only MP3 and WAV files are supported");
-  }
-  if (file.size > MAX_SIZE_BYTES) {
-    return apiError(413, "PAYLOAD_TOO_LARGE", "File too large (max 50MB)");
-  }
-  try {
-    const head = await readHead(file);
-    const isMp3 = file.type === "audio/mpeg" && looksLikeMP3(head);
-    const isWav = file.type === "audio/wav" && looksLikeWAV(head);
-    if (!isMp3 && !isWav) {
-      return apiError(400, "INVALID_CONTENT", "File signature does not match declared type");
-    }
-  } catch {
-    return apiError(400, "READ_ERROR", "Unable to read file header");
-  }
-  return null;
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
 }
 
-async function parseAndValidateForm(req: NextRequest): Promise<ParsedFormOk | ParsedFormErr> {
-  // Expect multipart/form-data
+async function parseAndValidateJson(req: NextRequest): Promise<ParsedJsonOk | ParsedJsonErr> {
   const contentType = req.headers.get("content-type") || "";
-  if (!contentType.toLowerCase().includes("multipart/form-data")) {
-    return { ok: false, res: apiError(400, "BAD_CONTENT_TYPE", "Expected multipart/form-data") };
+  if (!contentType.toLowerCase().includes("application/json")) {
+    return { ok: false, res: apiError(400, "BAD_CONTENT_TYPE", "Expected application/json") };
+  }
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return { ok: false, res: apiError(400, "BAD_REQUEST", "Invalid JSON body") };
+  }
+  if (!isRecord(body)) {
+    return { ok: false, res: apiError(400, "BAD_REQUEST", "Invalid JSON body") };
   }
 
-  const form = await req.formData();
-  const file = form.get("file");
-  const artistName = String(form.get("artistName") || "").trim();
-  const artistDescription = String(form.get("artistDescription") || "").trim();
-  const language = (String(form.get("language") || "pl").trim() || "pl").slice(0, 8);
-  const templateRaw = String(form.get("template") || "");
-  const template = templateRaw ? templateRaw.trim().slice(0, 5000) : undefined; // soft cap
-
-  if (!(file instanceof File)) {
-    return { ok: false, res: apiError(400, "MISSING_FILE", "Missing file field 'file'") };
-  }
+  const artistName = String((body.artistName ?? '').toString()).trim();
+  const artistDescription = String((body.artistDescription ?? '').toString()).trim();
+  const language = ((body.language ?? 'pl').toString().trim() || 'pl').slice(0, 8);
+  const templateRaw = typeof body.template === 'string' ? body.template : '';
+  const template = templateRaw ? templateRaw.trim().slice(0, 5000) : undefined;
+  const analysis = body.analysis as GeneratePayload['analysis'] | undefined;
 
   if (!artistName) {
     return { ok: false, res: apiError(400, "INVALID_ARTIST_NAME", "artistName is required") };
@@ -136,14 +112,11 @@ async function parseAndValidateForm(req: NextRequest): Promise<ParsedFormOk | Pa
       }),
     };
   }
+  if (!analysis || !isRecord(analysis) || !isRecord(analysis.data)) {
+    return { ok: false, res: apiError(400, "MISSING_ANALYSIS", "Missing prior analysis result in request body") };
+  }
 
-  const fileErr = await validateAudioFile(file);
-  if (fileErr) return { ok: false, res: fileErr };
-
-  return {
-    ok: true,
-    data: { file, artistName, artistDescription, language, template },
-  };
+  return { ok: true, data: { artistName, artistDescription, language, template, analysis } };
 }
 
 function successResponse({ language, text, outline }: { language: string; text: string; outline: string[] }) {
@@ -159,30 +132,68 @@ function successResponse({ language, text, outline }: { language: string; text: 
   );
 }
 
+// Mood mapper consistent with analyze route
+function determineMood(energy: number | string | undefined): string {
+  if (energy === undefined) return 'unknown';
+  if (typeof energy === 'number') {
+    if (energy >= 0.8) return 'energetic';
+    if (energy >= 0.6) return 'uplifting';
+    if (energy >= 0.4) return 'balanced';
+    if (energy >= 0.2) return 'relaxed';
+    return 'melancholic';
+  }
+  const s = String(energy).toLowerCase();
+  if (s.includes('very high') || s === 'high' || s.includes('strong')) return 'energetic';
+  if (s === 'medium' || s.includes('moderate') || s.includes('balanced')) return 'uplifting';
+  if (s === 'low' || s.includes('calm') || s.includes('soft')) return 'relaxed';
+  return 'unknown';
+}
+
 export async function POST(req: NextRequest) {
   // Rate limit
   const ip = getClientIp(req);
   if (!rateLimit(String(ip))) {
     return apiError(429, "RATE_LIMIT", "Too many requests. Please try again later.");
   }
-  
-  // Parse and validate form
-  const parsed = await parseAndValidateForm(req);
+
+  // Parse and validate JSON
+  const parsed = await parseAndValidateJson(req);
   if (!parsed.ok) return parsed.res;
-  const { artistName, artistDescription, language, /* file, */ template } = parsed.data;
+  const { artistName, artistDescription, language, template, analysis } = parsed.data;
 
-  // Simulated orchestration (Music.ai + LLM). Replace with real SDK calls.
-  // Note: `template` is accepted and would be passed to LLM in real integration.
-  await new Promise((r) => setTimeout(r, 1000 + Math.floor(Math.random() * 1000)));
+  // Extract helpful hints from prior analysis for generation
+  const data = analysis.data as Record<string, unknown>;
+  const tempo = typeof data.tempo === 'number' ? data.tempo : undefined;
+  const moodFromData = typeof data.mood === 'string' ? data.mood : undefined;
+  const analyzedTrack = (isRecord(data.analyzedTrack) ? data.analyzedTrack : undefined) as
+    | ({ energyLevel?: unknown; energy?: unknown; durationSec?: unknown; bpm?: unknown; musicalKey?: unknown })
+    | undefined;
+  const energyHint = ((): number | string | undefined => {
+    if (!analyzedTrack) return undefined;
+    if (typeof analyzedTrack.energyLevel === 'string') return analyzedTrack.energyLevel;
+    if (typeof analyzedTrack.energy === 'number') return analyzedTrack.energy;
+    return undefined;
+  })();
+  const mood = moodFromData ?? determineMood(energyHint);
 
+  try {
+    if (!process.env.JEST_WORKER_ID) {
+      console.debug('[audio/generate] received analysis ->', data);
+      console.debug('[audio/generate] derived mood <-', energyHint, '=>', mood);
+    }
+  } catch {
+    // ignore logging errors
+  }
+
+  // Keep response contract for MVP; enrich outline with provided analysis hints
   const outline = [
     "Hook: Kim jest artysta i klimat utworu",
-    "Cechy brzmienia i nastrój",
+    `Sygnały z analizy: tempo=${tempo ?? '—'}` + (mood ? `, nastrój=${mood}` : ''),
     "Propozycje wykorzystania / playlisty",
   ];
 
   const prefix = template ? "(wg szablonu) " : "";
-  const text = `${prefix}${artistName} — ${artistDescription.slice(0, 140)}...`; // naive stub
+  const text = `${prefix}${artistName} — ${artistDescription.slice(0, 140)}...`;
 
   return successResponse({ language, text, outline });
 }
