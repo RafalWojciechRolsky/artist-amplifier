@@ -1,0 +1,37 @@
+# QA Gate Decision for Story 1.3
+story:
+  epic: 1
+  id: 1.3
+  title: Generowanie i Edycja Opisu
+  slug: generowanie-i-edycja-opisu
+  path: docs/stories/1.3.generowanie-i-edycja-opisu.md
+
+decision:
+  status: PASS
+  date: 2025-08-28
+  reviewer: Quinn (qa)
+
+rationale:
+  summary: >-
+    Wszystkie poprzednio zidentyfikowane problemy zostały rozwiązane. Implementacja w pełni
+    spełnia wszystkie kryteria akceptacji z kompletną integracją BFF/API i prawidłową obsługą błędów.
+  acceptance_criteria:
+    AC1: PASS
+    AC2: PASS
+    AC3: PASS
+    AC4: PASS
+    AC5: PASS
+    AC6: PASS
+    AC7: PASS
+  quality_improvements:
+    - Prawidłowa integracja BFF zaimplementowana w src/app/api/audio/generate/route.ts
+    - Kompleksowa obsługa błędów ze standardowym formatem ApiError
+    - Ulepszenia dostępności A11y:
+      - TextEditor ma aria-label (linia 215 w page.tsx)
+      - Komunikat statusu ma role="status" i aria-live="polite" (linia 198 w page.tsx)
+
+required_fixes: []
+
+recommendations:
+  - Zaimplementować testy jednostkowe i integracyjne zgodnie z wymienionymi w story
+  - Rozważyć udokumentowanie i ekspozycję parametru template w API dla personalizacji generowania
