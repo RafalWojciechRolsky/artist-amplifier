@@ -1,6 +1,5 @@
 import type { AnalyzedTrack } from '@/lib/types/analysis';
 import { getServerEnv } from './env';
-import * as fs from 'node:fs';
 
 export type GeneratedDescription = {
 	language: 'pl' | 'en';
