@@ -84,7 +84,10 @@ export async function generateDescription(params: {
   const systemPrompt = env.LLM_SYSTEM_PROMPT;
 
   if (!apiKey || !model) {
-    throw createLlmError(500, 'LLM_ENV_MISSING', 'Missing LLM env configuration');
+    const missing: string[] = [];
+    if (!apiKey) missing.push('LLM_API_KEY');
+    if (!model) missing.push('LLM_MODEL');
+    throw createLlmError(500, 'ENV_MISSING', `Missing required env vars: ${missing.join(', ')}`, { missing });
   }
 
   const { system, user } = buildPrompt({
@@ -101,56 +104,65 @@ export async function generateDescription(params: {
 
   for (let attempt = 0; attempt <= backoffs.length; attempt++) {
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-          temperature: 0.7,
-        }),
-      });
+      // Add request timeout (30s) to protect server resources
+      const controller = new AbortController();
+      const TIMEOUT_MS = 30_000;
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: user },
+            ],
+            temperature: 0.7,
+          }),
+          signal: controller.signal,
+        });
 
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        const status = res.status;
-        if (shouldRetry(status, errText) && attempt < backoffs.length) {
-          await sleep(backoffs[attempt]);
-          continue;
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          const status = res.status;
+          if (shouldRetry(status, errText) && attempt < backoffs.length) {
+            await sleep(backoffs[attempt]);
+            continue;
+          }
+          if (status === 429) {
+            throw createLlmError(429, 'LLM_RATE_LIMIT', 'LLM provider rate limited');
+          }
+          throw createLlmError(502, 'LLM_BAD_GATEWAY', errText || 'LLM provider error', { status });
         }
-        if (status === 429) {
-          throw createLlmError(429, 'LLM_RATE_LIMIT', 'LLM provider rate limited');
+
+        const json = (await res.json()) as {
+          id: string;
+          model: string;
+          choices: Array<{ message?: { content?: string } | null }>;
+          usage?: { total_tokens?: number };
+        };
+
+        const content = json?.choices?.[0]?.message?.content?.trim() || '';
+        const tokensUsed = json?.usage?.total_tokens ?? undefined;
+        const modelName = json?.model ?? model;
+
+        if (!content) {
+          throw createLlmError(502, 'LLM_EMPTY_RESPONSE', 'LLM returned empty content');
         }
-        throw createLlmError(502, 'LLM_BAD_GATEWAY', errText || 'LLM provider error', { status });
+
+        return {
+          language: params.language,
+          text: content,
+          modelName,
+          tokensUsed,
+        };
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      const json = (await res.json()) as {
-        id: string;
-        model: string;
-        choices: Array<{ message?: { content?: string } | null }>;
-        usage?: { total_tokens?: number };
-      };
-
-      const content = json?.choices?.[0]?.message?.content?.trim() || '';
-      const tokensUsed = json?.usage?.total_tokens ?? undefined;
-      const modelName = json?.model ?? model;
-
-      if (!content) {
-        throw createLlmError(502, 'LLM_EMPTY_RESPONSE', 'LLM returned empty content');
-      }
-
-      return {
-        language: params.language,
-        text: content,
-        modelName,
-        tokensUsed,
-      };
     } catch (e: unknown) {
       lastError = e;
       const maybe = e as { status?: number; code?: string; message?: string };

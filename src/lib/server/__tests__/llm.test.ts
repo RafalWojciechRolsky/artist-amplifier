@@ -70,4 +70,34 @@ describe('llm.generateDescription', () => {
     expect(err.status).toBe(502);
     expect(err.code).toBe('LLM_BAD_GATEWAY');
   });
+
+  it('aborts request after 30s timeout and maps to LLM_BAD_GATEWAY', async () => {
+    const spy = (global as unknown as { fetch: jest.Mock }).fetch;
+    spy.mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        const signal = init?.signal as AbortSignal | undefined;
+        if (signal?.aborted) {
+          reject(new Error('Aborted'));
+          return;
+        }
+        signal?.addEventListener('abort', () => reject(new Error('Aborted')), { once: true });
+        // never resolve to simulate a hung upstream
+      });
+    });
+
+    const p = generateDescription(baseParams).catch((e) => e);
+    await jest.advanceTimersByTimeAsync(30_000);
+    const err = (await p) as { status?: number; code?: string };
+    expect(err.status).toBe(502);
+    expect(err.code).toBe('LLM_BAD_GATEWAY');
+  });
+
+  it('throws ENV_MISSING when required LLM env vars are absent', async () => {
+    delete process.env.LLM_API_KEY;
+    delete process.env.LLM_MODEL;
+    const err = (await generateDescription(baseParams).catch((e) => e)) as { code?: string; message?: string };
+    expect(err.code).toBe('ENV_MISSING');
+    expect(err.message || '').toContain('LLM_API_KEY');
+    expect(err.message || '').toContain('LLM_MODEL');
+  });
 });
