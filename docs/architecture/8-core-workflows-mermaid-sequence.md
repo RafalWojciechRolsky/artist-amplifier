@@ -1,58 +1,54 @@
 # 8. Core Workflows (Mermaid Sequence)
 
-## 8.1 Generate Description (sync orchestration)
+## 8.1 Asynchronous Generation Workflow
 
 ```mermaid
 sequenceDiagram
-  participant U as User
-  participant P as Page (src/app/page.tsx)
-  participant G as GenerateButton
-  participant FU as FileSelect
-  participant AN as ArtistNameInput
-  participant AD as ArtistDescriptionInput
-  participant API as BFF /api/audio/generate
-  participant MAI as Music.ai
-  participant LLM as LLM Provider
+    participant U as User
+    participant P as Page (Frontend)
+    participant Validate as POST /api/validate-audio
+    participant Analyze as POST /api/audio/analyze
+    participant Status as GET /api/audio/analyze/status
+    participant Generate as POST /api/audio/generate
+    participant MAI as Music.ai
+    participant LLM as LLM Provider
 
-  U->>FU: wybór pliku (mp3/wav)
-  FU->>P: onFileSelected(file)
+    U->>P: Wypełnia formularz i wybiera plik
+    P->>Validate: fetch(file)
+    Validate-->>P: 200 { ok: true }
 
-  U->>AN: wpisuje nazwę artysty
-  AN->>P: onArtistNameChange(artistName)
+    P->>Analyze: fetch(file)
+    Analyze->>MAI: Rozpoczyna zadanie analizy
+    MAI-->>Analyze: Zwraca jobId
+    Analyze-->>P: 202 Accepted { jobId }
 
-  U->>AD: wpisuje opis artysty
-  AD->>P: onArtistDescriptionChange(artistDescription)
+    loop Odpytywanie o status
+        P->>Status: fetch(?jobId=...)
+        Status->>MAI: Sprawdza status zadania
+        alt Zadanie w toku
+            MAI-->>Status: status: 'processing'
+            Status-->>P: 202 Accepted { status: 'processing' }
+            P-->>P: Czeka i ponawia...
+        else Zadanie zakończone
+            MAI-->>Status: status: 'succeeded', result: { ... }
+            Status-->>P: 200 OK { analysisResult }
+        end
+    end
 
-  P->>P: state.form = { artistName, artistDescription, file }
+    P->>Generate: fetch({ artistData, analysisResult })
+    Generate->>LLM: generateDescription(...)
+    LLM-->>Generate: GeneratedDescription
+    Generate-->>P: 200 OK { GeneratedDescription }
 
-  Note over P,G: Przycisk Generate aktywny TYLKO gdy<br/>artistName && artistDescription && file są ustawione
-
-  U->>G: click Generate
-  G->>P: onGenerate({ artistName, artistDescription, file })
-
-  P->>API: POST multipart/form-data (artistName, artistDescription, file)
-
-  API->>MAI: uploadFile(file) → inputUrl
-  API->>MAI: addJob({ workflow, inputUrl }) → jobId
-  API->>MAI: waitForJobCompletion(jobId) → result
-  API->>API: map to AudioAnalysis
-
-  API->>LLM: generateDescription("artist: { name: artistName, description: artistDescription }, audio: AudioAnalysis")
-  LLM-->>API: text + tokens
-
-  API-->>P: 200 GeneratedDescription
-  P->>P: state = readyDescription
-
-  opt błąd
-    MAI-->>API: FAILED / 429 / 5xx
-    API-->>P: ApiError (502/429/4xx)
-    LLM-->>API: 429 / 5xx
-    API-->>P: ApiError (502/429)
-    P->>P: state = error
-  end
+    opt Błędy
+        Validate-->>P: 4xx/5xx ApiError
+        Analyze-->>P: 4xx/5xx ApiError
+        Status-->>P: 4xx/5xx ApiError
+        Generate-->>P: 4xx/5xx ApiError
+    end
 ```
 
-## 8.3 Copy/Download/Reset & Edit loop
+## 8.2 Copy/Download/Reset & Edit loop
 
 ```mermaid
 sequenceDiagram
@@ -71,9 +67,10 @@ sequenceDiagram
 
   U->>R: click Reset
   R->>P: onReset()
-  P->>P: clear sessionStorage (aa:v1:*)
+  P->>P: clear sessionStorage (aa:v1:*) 
   P->>P: state = idle
   P-->>U: UI wraca do Kroku 1 (pola/plik/wynik wyczyszczone)
 ```
+
 
 ---

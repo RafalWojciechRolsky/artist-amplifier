@@ -16,7 +16,7 @@
      - ENV: `MUSIC_AI_API_KEY`, `MUSIC_AI_WORKFLOW_ANALYZE`; uzupełnić `.env.example` i README.
    - AC:
      - Realne wywołanie Music.ai; błędy → `ApiError` 502/429 z `requestId`.
-     - Brak zmian w formacie żądania z FE; FE (`src/lib/api/generate.ts`) działa bez modyfikacji.
+     - Wprowadzono nowy, asynchroniczny kontrakt API, wymagający modyfikacji po stronie FE w celu obsługi wieloetapowego procesu (validate, analyze, poll status).
 
 3. Story 2.2: Integracja LLM (OpenAI, non‑stream) w BFF
    - Zakres:
@@ -35,3 +35,4 @@
    - AC:
      - Braki ENV → jasne logi / `ApiError` 500 z minimalnym komunikatem.
      - CI przechodzi; dokumentacja aktualna.
+
