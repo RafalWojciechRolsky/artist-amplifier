@@ -1,4 +1,5 @@
-import { analysisResultStorage, AudioAnalysisResult } from '../typedSession';
+import { analysisResultStorage } from '../typedSession';
+import type { AnalysisResult } from '@/lib/types/analysis';
 import { SESSION_KEYS } from '../constants';
 
 describe('Typed Session Storage for Analysis Result', () => {
@@ -8,7 +9,32 @@ describe('Typed Session Storage for Analysis Result', () => {
   });
 
   it('should set and get analysis result from sessionStorage', () => {
-        const mockResult: AudioAnalysisResult = { id: 'abc-123', provider: 'test', data: { tempo: 120, key: 'C' } };
+        const mockResult: AnalysisResult = {
+          id: 'abc-123',
+          provider: 'test',
+          data: {
+            tempo: 120,
+            analyzedTrack: {
+              lyrics: '',
+              chords: [],
+              moods: [],
+              genres: [],
+              subgenres: [],
+              instruments: [],
+              movements: [],
+              energyLevel: '',
+              emotion: '',
+              language: '',
+              key: 'C',
+              timeSignature: '',
+              voiceGender: '',
+              voicePresence: '',
+              musicalEra: '',
+              duration: 0,
+              cover: '',
+            },
+          },
+        };
     
     analysisResultStorage.set(mockResult);
 

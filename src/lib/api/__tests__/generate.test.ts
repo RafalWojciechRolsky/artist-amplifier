@@ -6,10 +6,29 @@ describe('generateDescription', () => {
     id: '123',
     provider: 'stub',
     data: {
-      tempo: 120,
-      mood: 'energetic',
+      tempo: 120, // kept for outline display
+      mood: 'energetic', // legacy hint, safe to keep
+      analyzedTrack: {
+        lyrics: '',
+        chords: [],
+        moods: ['energetic'],
+        genres: ['pop'],
+        subgenres: [],
+        instruments: [],
+        movements: [],
+        energyLevel: 'high',
+        emotion: 'joy',
+        language: 'pl',
+        key: 'C major',
+        timeSignature: '4/4',
+        voiceGender: 'female',
+        voicePresence: 'lead',
+        musicalEra: 'modern',
+        duration: 210,
+        cover: '',
+      },
     },
-  };
+  } as const;
   // No file is needed for the JSON-based endpoint
 
   it('should generate a description successfully', async () => {

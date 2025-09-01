@@ -13,9 +13,9 @@ import { generateDescription } from '@/lib/api/generate';
 import {
 	artistFormStorage,
 	analysisResultStorage,
-	type AudioAnalysisResult,
 	generatedDescriptionStorage,
 } from '@/lib/typedSession';
+import type { AnalysisResult } from '@/lib/types/analysis';
 import { UI_TEXT } from '@/lib/constants';
 
 type AppState = {
@@ -23,7 +23,7 @@ type AppState = {
 	artistForm: ArtistFormValue;
 	audioFile: File | null;
 	audioError: string | null;
-	analysisResult: AudioAnalysisResult | null;
+	analysisResult: AnalysisResult | null;
 	generated: string;
 	generationError: string | null;
 };
@@ -33,7 +33,7 @@ type Action =
 	| { type: 'SET_STATUS'; payload: AppState['status'] }
 	| { type: 'SET_AUDIO_FILE'; payload: File | null }
 	| { type: 'SET_AUDIO_ERROR'; payload: string | null }
-	| { type: 'SET_ANALYSIS_RESULT'; payload: AudioAnalysisResult | null }
+	| { type: 'SET_ANALYSIS_RESULT'; payload: AnalysisResult | null }
 	| { type: 'SET_GENERATED_DESCRIPTION'; payload: string }
 	| { type: 'SET_GENERATION_ERROR'; payload: string | null }
 	| { type: 'RESET' };
@@ -151,7 +151,7 @@ export default function Home() {
 		abortRef.current = controller;
 
 		try {
-			const result: AudioAnalysisResult = await analyzeAudio(state.audioFile, {
+			const result: AnalysisResult = await analyzeAudio(state.audioFile, {
 				signal: controller.signal,
 			});
 			analysisResultStorage.set(result);

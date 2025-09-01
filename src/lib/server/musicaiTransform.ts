@@ -1,10 +1,5 @@
 // Transformer utilities for Music.ai raw payloads
-
-export interface ChordInfo {
-	start: number;
-	end: number;
-	chord_majmin: string;
-}
+import type { AnalyzedTrack, ChordInfo } from '@/lib/types/analysis';
 
 type ChordRaw = {
 	start?: unknown;
@@ -13,25 +8,7 @@ type ChordRaw = {
 	[k: string]: unknown;
 };
 
-export interface AnalyzedTrack {
-	lyrics: string; // Lyrics
-	chords: ChordInfo[]; // Chords structure
-	moods: string[]; // Mood
-	genres: string[]; // Genre
-	subgenres: string[]; // Subgenre
-	instruments: string[]; // Instruments
-	movements: string[]; // Movement
-	energyLevel: string; // Energy
-	emotion: string; // Emotion
-	language: string; // Language
-	key: string; // Root Key
-	timeSignature: string; // Time signature
-	voiceGender: string; // Voice gender
-	voicePresence: string; // Voice presence
-	musicalEra: string; // Musical era
-	duration: number; // Duration (seconds)
-	cover: string; // Cover (url)
-}
+// AnalyzedTrack is imported from shared types
 
 function asString(v: unknown): string {
 	return typeof v === 'string' ? v : '';
@@ -57,11 +34,11 @@ function toArrayOfStrings(v: unknown): string[] {
 }
 
 function asNumber(v: unknown): number {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) {
-    return Number(v);
-  }
-  return 0;
+	if (typeof v === 'number' && Number.isFinite(v)) return v;
+	if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) {
+		return Number(v);
+	}
+	return 0;
 }
 
 async function fetchJsonArray<T = unknown>(
@@ -125,7 +102,10 @@ export async function transformMusicAiRawToAnalyzedTrack(
 	const voicePresence = asString(raw['Voice presence']);
 	const musicalEra = asString(raw['Musical era']);
 	const duration = asNumber(raw['Duration']);
-	const cover = asString((raw as Record<string, unknown>)['Cover'] ?? (raw as Record<string, unknown>)['Covert']);
+	const cover = asString(
+		(raw as Record<string, unknown>)['Cover'] ??
+			(raw as Record<string, unknown>)['Covert']
+	);
 
 	const lyricsUrl = asString(raw['Lyrics']);
 	const chordsUrl = asString(raw['Chords structure']);
