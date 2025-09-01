@@ -7,8 +7,12 @@ artist-amplifier/
 ├── src/
 │   └── app/
 │       ├── api/
+│       │   ├── validate-audio/route.ts       # POST: Walidacja pliku audio
 │       │   └── audio/
-│       │       └── generate/route.ts       # POST: synchroniczna orkiestracja (analyze + LLM)
+│       │       ├── analyze/
+│       │       │   ├── status/route.ts       # GET: Sprawdzanie statusu zadania analizy
+│       │       │   └── route.ts              # POST: Inicjalizacja analizy audio
+│       │       └── generate/route.ts         # POST: Generowanie opisu z wyników analizy
 │       ├── page.tsx                        # Single‑screen UI
 │       ├── layout.tsx                      # Root layout
 │       └── globals.css                     # Tailwind v4 (import @tailwindcss/postcss)
@@ -42,5 +46,5 @@ artist-amplifier/
         └── package.json
 ```
 
-Uwaga: brak trwałego storage’u i auth (MVP). Jeden endpoint BFF: `/api/audio/generate` (YAGNI).
+Uwaga: brak trwałego storage’u i auth (MVP). Architektura oparta o asynchroniczny przepływ z odpytywaniem.
 

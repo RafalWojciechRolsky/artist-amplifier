@@ -1,45 +1,29 @@
-# 11. Backend Architecture (opcjonalny BFF)
+# 11. Backend Architecture (BFF)
 
 Minimalny BFF oparty o Next.js Route Handlers. Brak trwałego storage; streaming OFF. Node runtime 22.18.0.
 
 ## 11.1 Struktura katalogów
 
-- **Route Handlers**:
-  - `src/app/api/audio/generate/route.ts` (POST multipart/form-data — synchroniczna orkiestracja)
-- **Warstwa usług (server‑only)**:
-  - `src/lib/server/musicai.ts` — integracja z `@music.ai/sdk` (upload → job → wait → mapowanie wyników)
-  - `src/lib/server/llm.ts` — klient LLM (provider TBC), wywołanie non‑stream
-  - `src/lib/server/errors.ts` — `ApiError`, mapowanie kodów i HTTP
-  - (opcjonalnie) `src/lib/server/rateLimit.ts` — prosty limiter per‑IP
-    ENV na starcie procesu
-  - (opcjonalnie) `src/lib/server/rateLimit.ts` — prosty limiter per‑IP
+-   **Route Handlers**:
+    -   `src/app/api/validate-audio/route.ts` (POST - walidacja pliku)
+    -   `src/app/api/audio/analyze/route.ts` (POST - inicjalizacja analizy)
+    -   `src/app/api/audio/analyze/status/route.ts` (GET - odpytywanie o status analizy)
+    -   `src/app/api/audio/generate/route.ts` (POST - generowanie opisu z wyników analizy)
+-   **Warstwa usług (server-only)**:
+    -   `src/lib/server/musicai.ts` — integracja z `@music.ai/sdk`.
+    -   `src/lib/server/llm.ts` — klient LLM.
+    -   `src/lib/server/errors.ts` — `ApiError`, mapowanie kodów i HTTP.
+    -   `src/lib/server/musicaiTransform.ts` - transformacja wyników z Music.ai.
 
 ## 11.2 Kontrakty endpointów
 
-- `/api/audio/generate`:
-  - Metoda: POST
-  - Wejście: `multipart/form-data`
-    - Pola tekstowe: `artistName` (wym.), `artistDescription` (wym., 50–1000 znaków)
-    - Plik: `file` (`.mp3` lub `.wav`, ≤ 50 MB)
-  - Sukces `200 OK` (`application/json`):
-    - `GeneratedDescription` — `{ language: 'pl'|'en', text: string, outline?: string[], modelName?: string, tokensUsed?: number }`
-  - Błędy: `400` (walidacja), `413` (za duży plik), `415` (typ), `429` (rate limit), `5xx` (błąd zewn./wewn.)
-    - Format: `ApiError` — `{"error": { code, message, details?, timestamp, requestId }}`
+Architektura API została zmieniona z pojedynczego, synchronicznego endpointu na wieloetapowy proces asynchroniczny, aby lepiej zarządzać długotrwałymi operacjami analizy audio.
 
-```text
-artist-amplifier/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── audio/generate/route.ts    # POST (synchroniczna orkiestracja)
-│   │   ├── page.tsx
-│   │   └── layout.tsx
-│   ├── components/
-│   └── lib/
-│       ├── api/
-│       ├── validators.ts
-│       └── types.ts
-└── docs/
-└── architecture/
-└── source-tree.md
-```
+Nowy przepływ obejmuje następujące punkty końcowe:
+
+1.  **`POST /api/validate-audio`**: Waliduje plik audio przed wysłaniem.
+2.  **`POST /api/audio/analyze`**: Inicjuje analizę, potencjalnie zwracając `jobId` do śledzenia.
+3.  **`GET /api/audio/analyze/status`**: Umożliwia odpytywanie o status zadania analizy przy użyciu `jobId`.
+4.  **`POST /api/audio/generate`**: Generuje opis, przyjmując dane artysty oraz **wynik zakończonej analizy**.
+
+Szczegółowe kontrakty dla każdego z tych punktów końcowych znajdują się w dokumencie [5. API Specification](./5-api-specification.md).
