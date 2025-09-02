@@ -2,7 +2,6 @@
 
 import React from "react";
 import { AUDIO, UI_TEXT } from "@/lib/constants";
-import { validateAudioFile } from "@/lib/analysis";
 
 export type AudioUploadValue = File | null;
 
@@ -27,7 +26,6 @@ function validateFile(file: File): string | null {
 export default function AudioUpload({ value, onChange, error, setError }: Props) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const errorRef = React.useRef<HTMLParagraphElement | null>(null);
-  const [validating, setValidating] = React.useState(false);
 
   // Ensure input element clears when value is reset (e.g., global reset)
   React.useEffect(() => {
@@ -49,36 +47,9 @@ export default function AudioUpload({ value, onChange, error, setError }: Props)
           errorRef.current?.focus();
         });
       } else {
-        // Client checks passed; run server validation
-        setValidating(true);
+        // Client-side validation only
         setError?.(null);
         onChange(file);
-        validateAudioFile(file)
-          .then((res) => {
-            if (!res.ok) {
-              // Map server error codes to UI messages
-              let message: string = UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID;
-              if (res.error === "FILE_TOO_LARGE") message = UI_TEXT.VALIDATION_MESSAGES.AUDIO_SIZE_INVALID;
-              if (res.error === "INVALID_CONTENT") message = UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID;
-              if (res.error === "READ_ERROR") message = UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID;
-              setError?.(message);
-              onChange(null);
-              requestAnimationFrame(() => {
-                inputRef.current?.focus();
-                errorRef.current?.focus();
-              });
-            }
-          })
-          .catch(() => {
-            // Network or other failure -> surface generic error
-            setError?.(UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID);
-            onChange(null);
-            requestAnimationFrame(() => {
-              inputRef.current?.focus();
-              errorRef.current?.focus();
-            });
-          })
-          .finally(() => setValidating(false));
       }
     } else {
       onChange(null);
@@ -111,7 +82,6 @@ export default function AudioUpload({ value, onChange, error, setError }: Props)
         className="w-full rounded-lg border-2 aa-border aa-dashed aa-field px-3 py-2 focus:outline-none"
         aria-invalid={Boolean(error)}
         aria-describedby={error ? "audioFile-error" : undefined}
-        aria-busy={validating || undefined}
       />
       <p className="text-xs aa-text-secondary">
         Przeciągnij i upuść plik audio (MP3, WAV) lub kliknij, aby wybrać
