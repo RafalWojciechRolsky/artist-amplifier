@@ -61,7 +61,7 @@ function reducer(state: AppState, action: Action): AppState {
 	}
 }
 
-const initialForm: ArtistFormValue = { artistName: '', artistDescription: '' };
+const initialForm: ArtistFormValue = { artistName: '', songTitle: '', artistDescription: '' };
 
 function createInitialState(): AppState {
 	return {
@@ -88,7 +88,8 @@ export default function Home() {
 	React.useEffect(() => {
 		const savedForm = artistFormStorage.get();
 		if (savedForm) {
-			dispatch({ type: 'SET_FORM', payload: savedForm });
+			// Ensure backward compatibility if older session lacks songTitle
+			dispatch({ type: 'SET_FORM', payload: { ...initialForm, ...savedForm } });
 		}
 		const savedResult = analysisResultStorage.get();
 		if (savedResult) {
@@ -106,8 +107,8 @@ export default function Home() {
 
 	// Persist form to session on change (avoid saving empty form after reset)
 	React.useEffect(() => {
-		const { artistName, artistDescription } = state.artistForm;
-		if (artistName || artistDescription) {
+		const { artistName, songTitle, artistDescription } = state.artistForm;
+		if (artistName || songTitle || artistDescription) {
 			artistFormStorage.set(state.artistForm);
 		} else {
 			artistFormStorage.remove();

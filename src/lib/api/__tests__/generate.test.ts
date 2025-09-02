@@ -1,8 +1,13 @@
 import { generateDescription } from '../generate';
+import type { AnalysisResult } from '@/lib/types/analysis';
 
 describe('generateDescription', () => {
-  const mockForm = { artistName: 'Test Artist', artistDescription: 'A test artist' };
-  const mockAnalysis = {
+  const mockForm = {
+    artistName: 'Test Artist',
+    songTitle: 'Test Song',
+    artistDescription: 'A test artist',
+  };
+  const mockAnalysis: AnalysisResult = {
     id: '123',
     provider: 'stub',
     data: {
@@ -28,7 +33,7 @@ describe('generateDescription', () => {
         cover: '',
       },
     },
-  } as const;
+  };
   // No file is needed for the JSON-based endpoint
 
   it('should generate a description successfully', async () => {

@@ -5,11 +5,13 @@ import { VALIDATION_LIMITS, UI_TEXT } from '@/lib/constants';
 
 export type ArtistFormValue = {
 	artistName: string;
+	songTitle: string;
 	artistDescription: string;
 };
 
 export type ArtistFormErrors = Partial<{
 	artistName: string;
+	songTitle: string;
 	artistDescription: string;
 }>;
 
@@ -20,6 +22,10 @@ export function validateArtistForm(value: ArtistFormValue): ArtistFormErrors {
 
 	if (!value.artistName?.trim()) {
 		errors.artistName = UI_TEXT.VALIDATION_MESSAGES.ARTIST_NAME_REQUIRED;
+	}
+
+	if (!value.songTitle?.trim()) {
+		errors.songTitle = UI_TEXT.VALIDATION_MESSAGES.SONG_TITLE_REQUIRED;
 	}
 
 	const desc = value.artistDescription ?? '';
@@ -69,6 +75,9 @@ export default function ArtistForm({
 	function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
 		onChange({ ...value, artistName: e.target.value });
 	}
+	function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
+		onChange({ ...value, songTitle: e.target.value });
+	}
 	function handleDescChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
 		onChange({ ...value, artistDescription: e.target.value });
 	}
@@ -80,7 +89,7 @@ export default function ArtistForm({
 	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		// Mark all fields as touched to show errors on submit
-		setTouched({ artistName: true, artistDescription: true });
+		setTouched({ artistName: true, songTitle: true, artistDescription: true });
 
 		const validationErrors = validateArtistForm(value);
 		if (Object.keys(validationErrors).length === 0) {
@@ -122,6 +131,38 @@ export default function ArtistForm({
 						className='text-sm text-[color:var(--color-error)]'
 					>
 						{mergedErrors.artistName}
+					</p>
+				)}
+			</div>
+
+			<div className='grid gap-2'>
+				<label htmlFor='songTitle' className='font-medium'>
+					{UI_TEXT.FORM_LABELS.SONG_TITLE}
+				</label>
+				<input
+					id='songTitle'
+					name='songTitle'
+					type='text'
+					required
+					value={value.songTitle}
+					onChange={handleTitleChange}
+					onBlur={() => markTouched('songTitle')}
+					aria-invalid={Boolean(touched.songTitle && mergedErrors.songTitle)}
+					aria-describedby={
+						touched.songTitle && mergedErrors.songTitle
+							? 'songTitle-error'
+							: undefined
+					}
+					data-testid='song-title-input'
+					placeholder='Np. Tytuł utworu'
+					className='w-full rounded-lg border aa-border aa-field px-3 py-2 focus:outline-none'
+				/>
+				{touched.songTitle && mergedErrors.songTitle && (
+					<p
+						id='songTitle-error'
+						className='text-sm text-[color:var(--color-error)]'
+					>
+						{mergedErrors.songTitle}
 					</p>
 				)}
 			</div>

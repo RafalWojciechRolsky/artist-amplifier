@@ -53,6 +53,7 @@ function getClientIp(req: NextRequest): string {
 
 type GeneratePayload = {
   artistName: string;
+  songTitle: string;
   artistDescription: string;
   language?: string;
   template?: string;
@@ -63,6 +64,7 @@ type ParsedJsonOk = {
   ok: true;
   data: {
     artistName: string;
+    songTitle: string;
     artistDescription: string;
     language: string;
     template?: string;
@@ -92,6 +94,8 @@ async function parseAndValidateJson(req: NextRequest, requestId: string): Promis
   }
 
   const artistName = String((body.artistName ?? '').toString()).trim();
+  const songTitleRaw = String((body.songTitle ?? '').toString());
+  const songTitle = songTitleRaw.trim().slice(0, 200);
   const artistDescription = String((body.artistDescription ?? '').toString()).trim();
   const language = ((body.language ?? 'pl').toString().trim() || 'pl').slice(0, 8);
   const templateRaw = typeof body.template === 'string' ? body.template : '';
@@ -100,6 +104,9 @@ async function parseAndValidateJson(req: NextRequest, requestId: string): Promis
 
   if (!artistName) {
     return { ok: false, res: apiError(400, "INVALID_ARTIST_NAME", "artistName is required", undefined, requestId) };
+  }
+  if (!songTitle) {
+    return { ok: false, res: apiError(400, "INVALID_SONG_TITLE", "songTitle is required", undefined, requestId) };
   }
   if (artistDescription.length < 50 || artistDescription.length > 1000) {
     return {
@@ -115,7 +122,7 @@ async function parseAndValidateJson(req: NextRequest, requestId: string): Promis
     return { ok: false, res: apiError(400, "MISSING_ANALYSIS", "Missing prior analysis result in request body", undefined, requestId) };
   }
 
-  return { ok: true, data: { artistName, artistDescription, language, template, analysis } };
+  return { ok: true, data: { artistName, songTitle, artistDescription, language, template, analysis } };
 }
 
 function successResponse({ language, text, outline, modelName, tokensUsed }: { language: string; text: string; outline: string[]; modelName?: string; tokensUsed?: number }) {
@@ -159,7 +166,7 @@ export async function POST(req: NextRequest) {
   // Parse and validate JSON
   const parsed = await parseAndValidateJson(req, requestId);
   if (!parsed.ok) return parsed.res;
-  const { artistName, artistDescription, language, template, analysis } = parsed.data;
+  const { artistName, songTitle, artistDescription, language, template, analysis } = parsed.data;
 
   // Extract AnalyzedTrack for LLM; if missing in payload, attempt to transform raw data
   const data = analysis.data as Record<string, unknown>;
@@ -204,6 +211,7 @@ export async function POST(req: NextRequest) {
     const lang = language === 'en' ? 'en' as const : 'pl' as const;
     const llm = await llmGenerateDescription({
       artistName,
+      songTitle,
       artistDescription,
       analysis: analyzed,
       language: lang,

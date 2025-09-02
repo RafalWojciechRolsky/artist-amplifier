@@ -27,9 +27,11 @@ describe('Home integration', () => {
     // First mount – fill values to trigger setSession side effect
     const { unmount } = render(<Home />);
     const name1 = screen.getByLabelText(/nazwa artysty\/zespołu/i) as HTMLInputElement;
+    const title1 = screen.getByLabelText(/tytuł utworu/i) as HTMLInputElement;
     const desc1 = screen.getByLabelText(/opis artysty/i) as HTMLTextAreaElement;
 
     await user.type(name1, 'Artist X');
+    await user.type(title1, 'Song X');
     await user.type(desc1, 'Z'.repeat(60)); // >= MIN_DESCRIPTION
 
     // Unmount to simulate navigation/refresh
@@ -38,8 +40,10 @@ describe('Home integration', () => {
     // Second mount – should read from session and prefill
     render(<Home />);
     const name2 = await screen.findByLabelText(/nazwa artysty\/zespołu/i);
+    const title2 = await screen.findByLabelText(/tytuł utworu/i);
     const desc2 = await screen.findByLabelText(/opis artysty/i);
     expect((name2 as HTMLInputElement).value).toBe('Artist X');
+    expect((title2 as HTMLInputElement).value).toBe('Song X');
     expect((desc2 as HTMLTextAreaElement).value).toBe('Z'.repeat(60));
   });
 
@@ -57,12 +61,14 @@ describe('Home integration', () => {
     render(<Home />);
 
     const nameInput = screen.getByLabelText(/nazwa artysty\/zespołu/i);
+    const titleInput = screen.getByLabelText(/tytuł utworu/i);
     const descInput = screen.getByLabelText(/opis artysty/i);
     const audioInput = screen.getByLabelText(/plik utworu/i) as HTMLInputElement;
     const submitBtn = screen.getByRole('button', { name: /analizuj utwór/i });
 
     // Fill the form with valid data
     await user.type(nameInput, 'Test Artist');
+    await user.type(titleInput, 'Valid Title');
     await user.type(descInput, 'a'.repeat(MIN_DESCRIPTION));
     const file = new File(['aaa'], 'sample.mp3', { type: 'audio/mpeg' });
     await user.upload(audioInput, file);
@@ -93,12 +99,14 @@ describe('Home integration', () => {
     render(<Home />);
 
     const nameInput = screen.getByLabelText(/nazwa artysty\/zespołu/i);
+    const titleInput = screen.getByLabelText(/tytuł utworu/i);
     const descInput = screen.getByLabelText(/opis artysty/i);
     const audioInput = screen.getByLabelText(/plik utworu/i);
     const analyzeBtn = screen.getByRole('button', { name: /analizuj utwór/i });
 
     // Act: Fill form and analyze
     await user.type(nameInput, 'Test Artist');
+    await user.type(titleInput, 'Hit Single');
     await user.type(descInput, 'b'.repeat(MIN_DESCRIPTION));
     const file = new File(['test'], 'test.mp3', { type: 'audio/mpeg' });
     await user.upload(audioInput, file);
@@ -141,11 +149,13 @@ describe('Home integration', () => {
     render(<Home />);
 
     const nameInput = screen.getByLabelText(/nazwa artysty\/zespołu/i) as HTMLInputElement;
+    const titleInput = screen.getByLabelText(/tytuł utworu/i) as HTMLInputElement;
     const descInput = screen.getByLabelText(/opis artysty/i) as HTMLTextAreaElement;
     const audioInput = screen.getByLabelText(/plik utworu/i) as HTMLInputElement;
     const analyzeBtn = screen.getByRole('button', { name: /analizuj utwór/i });
 
     await user.type(nameInput, 'Reset Artist');
+    await user.type(titleInput, 'Reset Song');
     await user.type(descInput, 'q'.repeat(60));
     const file = new File(['x'], 'reset.mp3', { type: 'audio/mpeg' });
     await user.upload(audioInput, file);
@@ -162,6 +172,7 @@ describe('Home integration', () => {
 
     // Assert form cleared
     expect(nameInput.value).toBe('');
+    expect(titleInput.value).toBe('');
     expect(descInput.value).toBe('');
     expect(audioInput.value).toBe('');
 

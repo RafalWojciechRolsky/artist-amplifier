@@ -24,11 +24,13 @@ export const AUDIO = {
 export const UI_TEXT = {
   FORM_LABELS: {
     ARTIST_NAME: 'Nazwa artysty/zespołu',
+    SONG_TITLE: 'Tytuł utworu',
     ARTIST_DESCRIPTION: 'Opis artysty',
     AUDIO_FILE: 'Plik utworu (.mp3 / .wav, do 50MB)',
   },
   VALIDATION_MESSAGES: {
     ARTIST_NAME_REQUIRED: "Pole 'Nazwa artysty/zespołu' jest wymagane.",
+    SONG_TITLE_REQUIRED: "Pole 'Tytuł utworu' jest wymagane.",
     ARTIST_DESCRIPTION_REQUIRED: "Pole 'Opis artysty' jest wymagane.",
     DESCRIPTION_TOO_SHORT: (min: number) => `Opis musi mieć co najmniej ${min} znaków.`,
     DESCRIPTION_TOO_LONG: (max: number) => `Opis może mieć maksymalnie ${max} znaków.`,
