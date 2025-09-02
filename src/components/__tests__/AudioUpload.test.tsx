@@ -3,11 +3,7 @@ import { render, fireEvent, screen, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import AudioUpload, { AudioUploadValue } from '../AudioUpload';
 import { UI_TEXT } from '@/lib/constants';
-import * as analysis from '@/lib/analysis';
 
-jest.mock('@/lib/analysis', () => ({
-  validateAudioFile: jest.fn(),
-}));
 
 describe('AudioUpload Component', () => {
   const mockOnChange = jest.fn();
@@ -39,7 +35,6 @@ describe('AudioUpload Component', () => {
     );
 
     const file = new File(['(⌐□_□)'], 'song.mp3', { type: 'audio/mpeg' });
-    (analysis.validateAudioFile as jest.Mock).mockResolvedValue({ ok: true });
     const input = screen.getByLabelText(/Plik utworu/i);
 
     await act(async () => {
@@ -70,29 +65,7 @@ describe('AudioUpload Component', () => {
     expect(mockSetError).toHaveBeenCalledWith(UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID);
   });
 
-  it('rejects a file after server validation (invalid content)', async () => {
-    render(
-      <AudioUpload
-        value={mockValue}
-        onChange={mockOnChange}
-        setError={mockSetError}
-      />
-    );
-
-    const file = new File(['not-mp3'], 'fake.mp3', { type: 'audio/mpeg' });
-    (analysis.validateAudioFile as jest.Mock).mockResolvedValue({ ok: false, error: 'INVALID_CONTENT' });
-
-    const input = screen.getByLabelText(/Plik utworu/i);
-    fireEvent.change(input, { target: { files: [file] } });
-
-    await waitFor(() => {
-      expect(mockOnChange).toHaveBeenCalledWith(null);
-      expect(mockSetError).toHaveBeenCalledWith(UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID);
-    });
-
-    // Note: The component is controlled; it renders error from props.
-    // We assert callbacks were invoked with expected values.
-  });
+  // Server validation test removed - functionality moved to form submission
 
   it('rejects a file that is too large', () => {
     render(
