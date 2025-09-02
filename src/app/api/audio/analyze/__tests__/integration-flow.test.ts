@@ -1,15 +1,24 @@
 import { NextRequest } from 'next/server';
 
 // Mock next/server to provide minimal NextResponse/NextRequest behavior
-jest.mock('next/server', () => ({
-  NextRequest: class {},
-  NextResponse: {
-    json: (body: unknown, init?: { status?: number }) => ({
-      status: init?.status ?? 200,
-      json: async () => body,
-    }),
-  },
-}));
+jest.mock('next/server', () => {
+  class NextResponseMock {
+    status: number;
+    private _body: unknown;
+    constructor(status = 200, body?: unknown) {
+      this.status = status;
+      this._body = body;
+    }
+    json = async () => this._body;
+    static json(body: unknown, init?: { status?: number }) {
+      return new NextResponseMock(init?.status ?? 200, body);
+    }
+  }
+  return {
+    NextRequest: class {},
+    NextResponse: NextResponseMock,
+  };
+});
 
 // Mock Music.ai server SDK interactions used by routes
 jest.mock('@/lib/server/musicai', () => {
@@ -78,14 +87,26 @@ describe('Integration flow: analyze → status', () => {
       new MusicAiIntegrationError(202, 'MUSIC_AI_WAIT_TIMEOUT', 'Result not ready yet', { jobId: 'job-1' })
     );
 
-    const form = new FormData();
-    const blob = new Blob(['audio'], { type: 'audio/mpeg' });
-    Object.defineProperty(blob, 'name', { value: 'demo.mp3' });
-    form.append('file', blob as File);
+    // Mock download of blob URL inside route (downloadToTemp)
+    const size = 8;
+    const url = 'https://example.com/audio/demo.mp3';
+    const fetchMock = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array(size).buffer,
+    });
+    (global as unknown as { fetch: typeof fetch }).fetch = fetchMock as unknown as typeof fetch;
+
+    // Build JSON request expected by the route
+    const jsonPayload = {
+      url,
+      fileName: 'demo.mp3',
+      size,
+      type: 'audio/mpeg',
+    } as const;
 
     const reqAnalyze = {
-      headers: new Map<string, string>([['content-type', 'multipart/form-data']]),
-      formData: jest.fn().mockResolvedValueOnce(form),
+      headers: new Map<string, string>([['content-type', 'application/json']]),
+      json: jest.fn().mockResolvedValueOnce(jsonPayload),
     } as unknown as NextRequest;
 
     const resAnalyze = await POST_ANALYZE(reqAnalyze);

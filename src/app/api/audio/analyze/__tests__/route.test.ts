@@ -25,19 +25,25 @@ jest.mock('node:fs/promises', () => ({
 
 // Mock next/server
 jest.mock('next/server', () => {
+  class NextResponseMock {
+    status: number;
+    private _body: unknown;
+    constructor(status = 200, body?: unknown) {
+      this.status = status;
+      this._body = body;
+    }
+    json = async () => this._body;
+    static json(body: unknown, init?: { status?: number }) {
+      return new NextResponseMock(init?.status ?? 200, body);
+    }
+  }
   return {
     NextRequest: jest.fn().mockImplementation((url, options = {}) => ({
       url,
       headers: new Map(options?.headers || []),
-      formData: jest.fn().mockImplementation(() => Promise.resolve(options?.body || new FormData()))
+      json: jest.fn().mockImplementation(() => Promise.resolve(options?.body || {})),
     })),
-    NextResponse: {
-      json: jest.fn().mockImplementation((data, options = {}) => ({
-        status: options?.status || 200,
-        headers: new Map(),
-        json: () => Promise.resolve(data)
-      }))
-    }
+    NextResponse: NextResponseMock,
   };
 });
 
@@ -69,15 +75,23 @@ describe('Audio analyze API', () => {
       Cover: 'http://example.com/cover.jpg'
     });
 
-    // Create mock request
-    const mockFormData = new FormData();
-    const mockFile = new Blob(['test audio data'], { type: 'audio/mpeg' });
-    Object.defineProperty(mockFile, 'name', { value: 'test.mp3' });
-    mockFormData.append('file', mockFile as File);
-    
+    // Mock download of blob URL
+    const size = 16;
+    const url = 'https://example.com/audio/test.mp3';
+    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array(size).buffer,
+    }) as unknown as typeof fetch;
+
+    // Create mock JSON request
     const mockRequest = {
-      headers: new Map([['content-type', 'multipart/form-data']]),
-      formData: jest.fn().mockResolvedValueOnce(mockFormData)
+      headers: new Map([['content-type', 'application/json']]),
+      json: jest.fn().mockResolvedValueOnce({
+        url,
+        fileName: 'test.mp3',
+        size,
+        type: 'audio/mpeg',
+      }),
     };
 
     // Call the API handler
@@ -97,11 +111,10 @@ describe('Audio analyze API', () => {
   });
 
   it('should handle missing file error', async () => {
-    // Create mock request with no file
-    const mockFormData = new FormData();
+    // Create mock JSON request with missing required fields
     const mockRequest = {
-      headers: new Map([['content-type', 'multipart/form-data']]),
-      formData: jest.fn().mockResolvedValueOnce(mockFormData)
+      headers: new Map([['content-type', 'application/json']]),
+      json: jest.fn().mockResolvedValueOnce({}),
     };
 
     // Call the API handler
@@ -110,7 +123,7 @@ describe('Audio analyze API', () => {
 
     // Verify error response
     expect(response.status).toBe(400);
-    expect(result.error.code).toBe('MISSING_FILE');
+    expect(result.error.code).toBe('MISSING_FIELDS');
     expect(typeof result.error.requestId).toBe('string');
   });
 
@@ -123,15 +136,23 @@ describe('Audio analyze API', () => {
       new MusicAiIntegrationError(503, 'MUSIC_AI_SERVICE_UNAVAILABLE', 'Service unavailable')
     );
 
-    // Create mock request
-    const mockFormData = new FormData();
-    const mockFile = new Blob(['test audio data'], { type: 'audio/mpeg' });
-    Object.defineProperty(mockFile, 'name', { value: 'test.mp3' });
-    mockFormData.append('file', mockFile as File);
-    
+    // Mock download of blob URL
+    const size = 24;
+    const url = 'https://example.com/audio/test.mp3';
+    (global as unknown as { fetch: typeof fetch }).fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array(size).buffer,
+    }) as unknown as typeof fetch;
+
+    // Create mock JSON request
     const mockRequest = {
-      headers: new Map([['content-type', 'multipart/form-data']]),
-      formData: jest.fn().mockResolvedValueOnce(mockFormData)
+      headers: new Map([['content-type', 'application/json']]),
+      json: jest.fn().mockResolvedValueOnce({
+        url,
+        fileName: 'test.mp3',
+        size,
+        type: 'audio/mpeg',
+      }),
     };
 
     // Call the API handler

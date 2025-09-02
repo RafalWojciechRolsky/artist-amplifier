@@ -31,12 +31,29 @@ describe('Audio Analysis', () => {
     const mockFile = new File(['dummy content'], 'test.mp3', { type: 'audio/mpeg' });
     const result = await analyzeAudio(mockFile);
     
-    // Verify fetch was called with correct arguments
+    // Verify fetch was called with correct arguments (JSON body)
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/audio/analyze',
       expect.objectContaining({
         method: 'POST',
-        body: expect.any(FormData)
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+        body: expect.any(String)
+      })
+    );
+
+    // Verify body shape
+    const analyzeCall = (global.fetch as jest.Mock).mock.calls.find(
+      (c: unknown[]) => c[0] === '/api/audio/analyze'
+    );
+    expect(analyzeCall).toBeTruthy();
+    const init = analyzeCall?.[1] as RequestInit;
+    const payload = JSON.parse(init!.body as string);
+    expect(payload).toEqual(
+      expect.objectContaining({
+        url: expect.stringMatching(/^https?:\/\//),
+        fileName: 'test.mp3',
+        size: mockFile.size,
+        type: 'audio/mpeg'
       })
     );
     
