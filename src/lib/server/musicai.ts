@@ -1,4 +1,3 @@
-import MusicAi from '@music.ai/sdk';
 import { assertServerEnv, getServerEnv } from './env';
 
 
@@ -87,7 +86,7 @@ export async function waitForJobRawResult(
 	opts?: { waitTimeoutMs?: number }
 ): Promise<Record<string, unknown> | 'TIMEOUT'> {
 	assertServerEnv();
-	const Ctor = MusicAi as unknown as MusicAiCtor;
+	const Ctor = await getMusicAiCtor();
 	const env = getServerEnv();
 	const musicAi = new Ctor({ apiKey: env.MUSIC_AI_API_KEY });
 	const job = await waitWithTimeout(
@@ -108,6 +107,13 @@ export async function waitForJobRawResult(
 }
 
 type MusicAiCtor = new (opts: { apiKey: string }) => MusicAiSdk;
+
+// Lazy-load the ESM SDK to avoid Jest ESM parsing issues in Node env tests
+async function getMusicAiCtor(): Promise<MusicAiCtor> {
+    const mod = await import('@music.ai/sdk');
+    // default export for ESM; be defensive in case of CJS interop
+    return (mod.default ?? (mod as unknown)) as unknown as MusicAiCtor;
+}
 
 /**
  * Run the analyze workflow and return the RAW result from Music.ai without mapping.
@@ -153,7 +159,7 @@ export async function analyzeAudioRaw(
 	// --- END DEV MOCK ---
 
 	assertServerEnv();
-	const Ctor = MusicAi as unknown as MusicAiCtor;
+	const Ctor = await getMusicAiCtor();
 	const env = getServerEnv();
 	const musicAi = new Ctor({ apiKey: env.MUSIC_AI_API_KEY });
 	const workflow = env.MUSIC_AI_WORKFLOW_ANALYZE;
@@ -220,13 +226,13 @@ export async function analyzeAudioRaw(
 }
 
 export async function waitForJobResult(
-	jobId: string,
-	opts?: { waitTimeoutMs?: number }
+    jobId: string,
+    opts?: { waitTimeoutMs?: number }
 ): Promise<'TIMEOUT' | never> {
-	assertServerEnv();
-	const Ctor = MusicAi as unknown as MusicAiCtor;
-	const env = getServerEnv();
-	const musicAi = new Ctor({ apiKey: env.MUSIC_AI_API_KEY });
+    assertServerEnv();
+	const Ctor = await getMusicAiCtor();
+    const env = getServerEnv();
+    const musicAi = new Ctor({ apiKey: env.MUSIC_AI_API_KEY });
 	const job = await waitWithTimeout(
 		musicAi,
 		jobId,
