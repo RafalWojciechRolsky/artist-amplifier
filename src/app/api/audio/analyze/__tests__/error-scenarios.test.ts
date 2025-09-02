@@ -2,7 +2,6 @@
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import { analyzeAudioRaw } from '@/lib/server/musicai';
-import { transformMusicAiRawToAnalyzedTrack } from '@/lib/server/musicaiTransform';
 
 // Mock dependencies
 jest.mock('@/lib/server/musicai');
@@ -18,7 +17,6 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockAnalyzeAudioRaw = analyzeAudioRaw as jest.MockedFunction<typeof analyzeAudioRaw>;
-const mockTransform = transformMusicAiRawToAnalyzedTrack as jest.MockedFunction<typeof transformMusicAiRawToAnalyzedTrack>;
 
 describe('/api/audio/analyze - Error Scenarios', () => {
 	beforeEach(async () => {
@@ -41,6 +39,7 @@ describe('/api/audio/analyze - Error Scenarios', () => {
 					fileName: 'test.mp3',
 					size: 1000,
 					type: 'audio/mpeg',
+					checksumSha256: 'deadbeef',
 				}),
 				headers: { 'Content-Type': 'application/json' },
 			});
@@ -69,6 +68,7 @@ describe('/api/audio/analyze - Error Scenarios', () => {
 					fileName: 'test.mp3',
 					size: 1000,
 					type: 'audio/mpeg',
+					checksumSha256: 'deadbeef',
 				}),
 				headers: { 'Content-Type': 'application/json' },
 			});
@@ -97,6 +97,7 @@ describe('/api/audio/analyze - Error Scenarios', () => {
 					fileName: 'test.mp3',
 					size: 1000, // Expected size
 					type: 'audio/mpeg',
+					checksumSha256: 'deadbeef',
 				}),
 				headers: { 'Content-Type': 'application/json' },
 			});
@@ -145,16 +146,13 @@ describe('/api/audio/analyze - Error Scenarios', () => {
 			expect(result.error.details).toHaveProperty('actual');
 		});
 
-		it('should proceed without client checksum when not provided', async () => {
+		it('should reject when client checksum is missing', async () => {
 			// Arrange
 			const fileContent = new ArrayBuffer(1000);
 			mockFetch.mockResolvedValue({
 				ok: true,
 				arrayBuffer: () => Promise.resolve(fileContent),
 			});
-
-			mockAnalyzeAudioRaw.mockResolvedValue({ test: 'data' });
-			(mockTransform as jest.Mock).mockResolvedValue({});
 
 			const request = new NextRequest('http://localhost/api/audio/analyze', {
 				method: 'POST',
@@ -170,10 +168,12 @@ describe('/api/audio/analyze - Error Scenarios', () => {
 
 			// Act
 			const response = await POST(request);
+			const result = await response.json();
 
 			// Assert
-			expect(response.status).toBe(200);
-			expect(mockAnalyzeAudioRaw).toHaveBeenCalled();
+			expect(response.status).toBe(400);
+			expect(result.error.code).toBe('MISSING_CHECKSUM');
+			expect(mockAnalyzeAudioRaw).not.toHaveBeenCalled();
 		});
 	});
 

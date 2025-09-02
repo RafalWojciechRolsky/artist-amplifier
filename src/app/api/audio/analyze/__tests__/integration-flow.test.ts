@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { createHash } from 'node:crypto';
 
 // Mock next/server to provide minimal NextResponse/NextRequest behavior
 jest.mock('next/server', () => {
@@ -97,11 +98,16 @@ describe('Integration flow: analyze → status', () => {
     (global as unknown as { fetch: typeof fetch }).fetch = fetchMock as unknown as typeof fetch;
 
     // Build JSON request expected by the route
+    const clientChecksum = createHash('sha256')
+      .update(new Uint8Array(size))
+      .digest('hex');
+
     const jsonPayload = {
       url,
       fileName: 'demo.mp3',
       size,
       type: 'audio/mpeg',
+      checksumSha256: clientChecksum,
     } as const;
 
     const reqAnalyze = {

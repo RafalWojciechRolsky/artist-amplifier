@@ -55,16 +55,16 @@ export async function analyzeAudio(
 		}
 	}
 
-	// 2) Compute SHA-256 checksum in browser for integrity verification
-	let checksumSha256: string | undefined;
+	// 2) Compute SHA-256 checksum in browser for integrity verification (mandatory)
+	let checksumSha256: string;
 	try {
 		const buf = await file.arrayBuffer();
 		const hashBuf = await crypto.subtle.digest('SHA-256', buf);
 		const hashArr = Array.from(new Uint8Array(hashBuf));
 		checksumSha256 = hashArr.map((b) => b.toString(16).padStart(2, '0')).join('');
+		if (!checksumSha256) throw new Error('EMPTY_HASH');
 	} catch {
-		// Non-fatal; server will compute its own
-		checksumSha256 = undefined;
+		throw new Error('Nie udało się obliczyć sumy kontrolnej pliku. Spróbuj ponownie.');
 	}
 
 	// 3) Call analyze endpoint with the blob URL + metadata

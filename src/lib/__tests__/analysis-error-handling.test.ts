@@ -13,12 +13,10 @@ jest.mock('@vercel/blob/client', () => ({
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-// Mock crypto.subtle for checksum calculation
-Object.defineProperty(global, 'crypto', {
-	value: {
-		subtle: {
-			digest: jest.fn().mockResolvedValue(new ArrayBuffer(32)),
-		},
+// Baseline crypto mock helper
+const makeCryptoMock = () => ({
+	subtle: {
+		digest: jest.fn().mockResolvedValue(new ArrayBuffer(32)),
 	},
 });
 
@@ -27,6 +25,17 @@ describe('analyzeAudio - Error Handling', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		Object.defineProperty(global, 'crypto', {
+			value: makeCryptoMock(),
+			configurable: true,
+		});
+		const gw = global as unknown as { window?: { [k: string]: unknown } };
+		if (gw.window) {
+			Object.defineProperty(gw.window, 'crypto', {
+				value: (global as unknown as { crypto: unknown }).crypto,
+				configurable: true,
+			});
+		}
 	});
 
 	describe('Upload Failures', () => {
@@ -142,14 +151,14 @@ describe('analyzeAudio - Error Handling', () => {
 	});
 
 	describe('Checksum Validation', () => {
-		it('should handle checksum calculation errors gracefully', async () => {
+		it('should reject when checksum calculation fails', async () => {
 			// Arrange
 			const { upload } = await import('@vercel/blob/client');
 			const mockUpload = upload as jest.MockedFunction<typeof upload>;
 			(mockUpload as jest.Mock).mockResolvedValue({ url: 'https://example.com/test.mp3' });
 			
-			// Mock crypto.subtle.digest to fail
-			(global.crypto.subtle.digest as jest.Mock).mockRejectedValue(
+			// Mock crypto.subtle.digest to fail (only once for this test)
+			(global.crypto.subtle.digest as jest.Mock).mockRejectedValueOnce(
 				new Error('Crypto not available')
 			);
 
@@ -158,11 +167,10 @@ describe('analyzeAudio - Error Handling', () => {
 				json: () => Promise.resolve({ id: '123', data: { analyzedTrack: {} } }),
 			});
 
-			// Act
-			const result = await analyzeAudio(mockFile);
-
-			// Assert - should continue without checksum
-			expect(result).toBeDefined();
+			// Act & Assert - should throw due to mandatory checksum
+			await expect(analyzeAudio(mockFile)).rejects.toThrow(
+				'Nie udało się obliczyć sumy kontrolnej pliku. Spróbuj ponownie.'
+			);
 		});
 	});
 });

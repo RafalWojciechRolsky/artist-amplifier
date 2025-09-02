@@ -11,6 +11,49 @@ const makeOkResponse = (data: unknown) => ({
 	status: 200,
 	json: async () => data,
 });
+
+// Provide a minimal Web Crypto API for tests (checksum computation)
+// Only define if not already set by a test file.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const g: any = global as any;
+if (!g.crypto || !g.crypto.subtle || typeof g.crypto.subtle.digest !== 'function') {
+  const cryptoMock = {
+    subtle: {
+      // Return a 32-byte ArrayBuffer to simulate SHA-256
+      digest: jest.fn().mockResolvedValue(new ArrayBuffer(32)),
+    },
+  };
+  Object.defineProperty(global, 'crypto', {
+    value: cryptoMock,
+    configurable: true,
+  });
+  if (g.window) {
+    Object.defineProperty(g.window, 'crypto', {
+      value: cryptoMock,
+      configurable: true,
+    });
+  }
+
+// Polyfill Blob/File.arrayBuffer if missing in the jsdom environment
+// so that File.prototype.arrayBuffer() exists during tests
+try {
+  const blobProto = (global as unknown as { Blob?: { prototype?: unknown } }).Blob?.prototype as unknown as {
+    arrayBuffer?: () => Promise<ArrayBuffer>;
+  } | undefined;
+  if (blobProto && typeof blobProto.arrayBuffer !== 'function') {
+    Object.defineProperty(blobProto, 'arrayBuffer', {
+      value: function arrayBuffer() {
+        // Derive a length if possible; default to 1 byte buffer
+        const size = (this as { size?: number }).size ?? 1;
+        return Promise.resolve(new Uint8Array(Math.max(1, size)).buffer);
+      },
+      configurable: true,
+    });
+  }
+} catch {
+  // ignore
+}
+}
 // (no need for raw response helper; keep mocks minimal)
 
 // Ensure Buffer exists in jsdom environment for server utilities

@@ -89,7 +89,7 @@ type AnalyzeFromUrlPayload = {
 	fileName: string;
 	size: number;
 	type: string;
-	checksumSha256?: string;
+	checksumSha256: string;
 };
 
 async function downloadToTemp(
@@ -193,6 +193,11 @@ export async function POST(req: NextRequest) {
 		return apiError(413, 'PAYLOAD_TOO_LARGE', 'File too large (max 50MB)', undefined, requestId);
 	}
 
+	// After basic shape/type/size validation, enforce mandatory checksum presence
+	if (!payload.checksumSha256) {
+		return apiError(400, 'MISSING_CHECKSUM', 'Client checksum is required for integrity validation', undefined, requestId);
+	}
+
 	// In test env, skip deep signature check
 	const isTest = process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test';
 	if (!isTest) {
@@ -220,16 +225,16 @@ export async function POST(req: NextRequest) {
 	tempPath = tPath;
 
 	try {
-		// Optional checksum comparison
-		if (payload?.checksumSha256 && payload.checksumSha256 !== checksumSha256) {
-			return apiError(
-				422,
-				'CHECKSUM_MISMATCH',
-				'Checksum mismatch detected for downloaded file',
-				{ expected: payload.checksumSha256, actual: checksumSha256 },
-				requestId
-			);
-		}
+        // Mandatory checksum comparison
+        if (payload.checksumSha256 !== checksumSha256) {
+            return apiError(
+                422,
+                'CHECKSUM_MISMATCH',
+                'Checksum mismatch detected for downloaded file',
+                { expected: payload.checksumSha256, actual: checksumSha256 },
+                requestId
+            );
+        }
 
 		// Always fetch RAW result and transform centrally
 		const raw = await analyzeAudioRaw(tempPath as string);

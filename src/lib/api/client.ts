@@ -5,7 +5,7 @@ export type AnalyzeRequest = {
 	fileName: string;
 	size: number;
 	type: string;
-	checksumSha256?: string;
+	checksumSha256: string;
 };
 
 // Thin wrapper over Vercel Blob client upload

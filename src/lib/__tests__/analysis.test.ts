@@ -3,9 +3,25 @@ import { analyzeAudio } from '../analysis';
 // Mock fetch for testing
 global.fetch = jest.fn();
 
+// Ensure crypto.subtle.digest is available in jsdom
+beforeAll(() => {
+  const cryptoMock = { subtle: { digest: jest.fn().mockResolvedValue(new ArrayBuffer(32)) } };
+  Object.defineProperty(global, 'crypto', { value: cryptoMock, configurable: true });
+  if ((global as unknown as { window?: Window }).window) {
+    Object.defineProperty((global as unknown as { window: Window }).window, 'crypto', { value: cryptoMock, configurable: true });
+  }
+});
+
 describe('Audio Analysis', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Restore digest mock after clearAllMocks on both global and window
+    const c = (global as unknown as { crypto: { subtle: { digest: jest.Mock } } }).crypto;
+    c.subtle.digest.mockResolvedValue(new ArrayBuffer(32));
+    const gw = global as unknown as { window?: { crypto?: { subtle: { digest: jest.Mock } } } };
+    if (gw.window?.crypto?.subtle?.digest) {
+      gw.window.crypto.subtle.digest.mockResolvedValue(new ArrayBuffer(32));
+    }
     // Set up default mock response
     (global.fetch as jest.Mock).mockImplementation(() =>
       Promise.resolve({
@@ -53,7 +69,8 @@ describe('Audio Analysis', () => {
         url: expect.stringMatching(/^https?:\/\//),
         fileName: 'test.mp3',
         size: mockFile.size,
-        type: 'audio/mpeg'
+        type: 'audio/mpeg',
+        checksumSha256: expect.stringMatching(/^[0-9a-f]+$/)
       })
     );
     

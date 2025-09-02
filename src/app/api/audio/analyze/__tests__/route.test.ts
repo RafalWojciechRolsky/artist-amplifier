@@ -1,5 +1,6 @@
 import { analyzeAudioRaw } from '@/lib/server/musicai';
 import { NextRequest } from 'next/server';
+import { createHash } from 'node:crypto';
 
 // Mock the dependencies
 jest.mock('@/lib/server/musicai', () => ({
@@ -91,6 +92,7 @@ describe('Audio analyze API', () => {
         fileName: 'test.mp3',
         size,
         type: 'audio/mpeg',
+        checksumSha256: createHash('sha256').update(new Uint8Array(size)).digest('hex'),
       }),
     };
 
@@ -152,6 +154,7 @@ describe('Audio analyze API', () => {
         fileName: 'test.mp3',
         size,
         type: 'audio/mpeg',
+        checksumSha256: createHash('sha256').update(new Uint8Array(size)).digest('hex'),
       }),
     };
 
