@@ -43,6 +43,7 @@ function shouldRetry(status: number | undefined, message?: string): boolean {
 
 function buildPrompt(params: {
 	artistName: string;
+	songTitle: string;
 	artistDescription: string;
 	analysis: AnalyzedTrack;
 	language: 'pl' | 'en';
@@ -52,6 +53,7 @@ function buildPrompt(params: {
 	const {
 		artistName,
 		artistDescription,
+		songTitle,
 		analysis,
 		language,
 		template,
@@ -102,13 +104,14 @@ function buildPrompt(params: {
 	}
 
 	const t = template ? `Template hint: ${template}\n` : '';
-	const user = `Language: ${language}\nArtist: ${artistName}\nAbout: ${artistDescription}\n\nFull song analysis (JSON):\n${analysisJson}\n\n${t}Task: Write a concise, engaging description (max ~1500 characters).`;
+	const user = `Language: ${language}\nArtist: ${artistName}\nSong title: ${songTitle}\nAbout: ${artistDescription}\n\nFull song analysis (JSON):\n${analysisJson}\n\n${t}Task: Write a concise, engaging description (max ~1500 characters).`;
 
 	return { system, user };
 }
 
 export async function generateDescription(params: {
 	artistName: string;
+	songTitle: string;
 	artistDescription: string;
 	analysis: AnalyzedTrack;
 	language: 'pl' | 'en';
@@ -133,6 +136,7 @@ export async function generateDescription(params: {
 
 	const { system, user } = buildPrompt({
 		artistName: params.artistName,
+		songTitle: params.songTitle,
 		artistDescription: params.artistDescription,
 		analysis: params.analysis,
 		language: params.language,
