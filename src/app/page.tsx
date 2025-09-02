@@ -169,6 +169,7 @@ export default function Home() {
 			}
 			// Surface error via status banner and near file input (for a11y/tests)
 			dispatch({ type: 'SET_STATUS', payload: 'error' });
+			// For UX consistency, show a generic error near the upload input
 			dispatch({ type: 'SET_AUDIO_ERROR', payload: UI_TEXT.STATUS.ERROR });
 		} finally {
 			abortRef.current = null;

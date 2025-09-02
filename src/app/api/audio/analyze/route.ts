@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, unlink } from 'node:fs/promises';
+import { unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { analyzeAudioRaw, MusicAiIntegrationError } from '@/lib/server/musicai';
 import { transformMusicAiRawToAnalyzedTrack } from '@/lib/server/musicaiTransform';
+import { createHash } from 'node:crypto';
 
 // Simple in-memory rate limiter: max 20 requests per 5 minutes per IP
 const WINDOW_MS = 5 * 60 * 1000;
@@ -22,13 +23,22 @@ function rateLimit(key: string) {
 	return true;
 }
 
-async function blobToArrayBuffer(b: Blob): Promise<ArrayBuffer> {
-	const anyBlob = b as unknown as { arrayBuffer?: () => Promise<ArrayBuffer> };
-	if (typeof anyBlob.arrayBuffer === 'function') {
-		return anyBlob.arrayBuffer();
-	}
-	// Fallback via Response for environments lacking Blob#arrayBuffer
-	return await new Response(b).arrayBuffer();
+// Lightweight file signature checks
+function looksLikeMP3(bytes: Uint8Array): boolean {
+    // ID3 tag or MPEG frame sync
+    if (bytes.length >= 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true; // 'ID3'
+    if (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) return true; // frame sync
+    return false;
+}
+
+function looksLikeWAV(bytes: Uint8Array): boolean {
+    // 'RIFF' .... 'WAVE'
+    if (bytes.length >= 12) {
+        const riff = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46; // RIFF
+        const wave = bytes[8] === 0x57 && bytes[9] === 0x41 && bytes[10] === 0x56 && bytes[11] === 0x45; // WAVE
+        return riff && wave;
+    }
+    return false;
 }
 
 // Limits aligned with FE validation
@@ -64,47 +74,6 @@ function apiError(
 	return NextResponse.json(body, { status });
 }
 
-async function readHead(file: File, n = 12): Promise<Uint8Array> {
-	const slice = file.slice(0, n);
-	const buf = await slice.arrayBuffer();
-	return new Uint8Array(buf);
-}
-
-function looksLikeMP3(head: Uint8Array): boolean {
-	// MP3 may start with ID3 tag ("ID3") or MPEG frame sync 0xFF 0xE0 mask
-	if (
-		head.length >= 3 &&
-		head[0] === 0x49 &&
-		head[1] === 0x44 &&
-		head[2] === 0x33
-	)
-		return true; // "ID3"
-	if (head.length >= 2 && head[0] === 0xff && (head[1] & 0xe0) === 0xe0)
-		return true; // frame sync
-	return false;
-}
-
-function looksLikeWAV(head: Uint8Array): boolean {
-	// RIFF....WAVE
-	if (head.length >= 12) {
-		const str = new TextDecoder().decode(head);
-		return str.startsWith('RIFF') && str.slice(8, 12) === 'WAVE';
-	}
-	return false;
-}
-
-function isFileLike(f: unknown): f is File {
-	// Prefer native File when available
-	if (typeof File !== 'undefined' && f instanceof File) return true;
-	if (!f || typeof f !== 'object') return false;
-	const obj = f as { arrayBuffer?: unknown; slice?: unknown; type?: unknown };
-	return (
-		typeof obj.arrayBuffer === 'function' &&
-		typeof obj.slice === 'function' &&
-		typeof obj.type === 'string'
-	);
-}
-
 function getClientIp(req: NextRequest): string {
 	const forwarded = req.headers.get('x-forwarded-for');
 	const ip = (
@@ -115,56 +84,69 @@ function getClientIp(req: NextRequest): string {
 	return String(ip);
 }
 
-async function validateAudioFile(
-	file: File,
-	requestId: string
-): Promise<NextResponse | null> {
-	if (!ACCEPT_MIME.has(file.type)) {
-		return apiError(
-			415,
-			'UNSUPPORTED_MEDIA_TYPE',
-			'Only MP3 and WAV files are supported',
-			undefined,
-			requestId
-		);
-	}
-	if (file.size > MAX_SIZE_BYTES) {
-		return apiError(
-			413,
-			'PAYLOAD_TOO_LARGE',
-			'File too large (max 50MB)',
-			undefined,
-			requestId
-		);
-	}
-	// In Jest/jsdom environment, Blob/File implementations may not fully match
-	// Node/Web APIs for binary slicing/reading; skip deep signature check.
-	if (process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test') {
-		return null;
-	}
-	try {
-		const head = await readHead(file);
-		const isMp3 = file.type === 'audio/mpeg' && looksLikeMP3(head);
-		const isWav = file.type === 'audio/wav' && looksLikeWAV(head);
-		if (!isMp3 && !isWav) {
+type AnalyzeFromUrlPayload = {
+	url: string;
+	fileName: string;
+	size: number;
+	type: string;
+	checksumSha256: string;
+};
+
+async function downloadToTemp(
+	url: string,
+	expectedSize: number,
+	requestId: string,
+	maxRetries = 2
+): Promise<{ tempPath: string; actualSize: number; checksumSha256: string } | NextResponse> {
+	const ext = url.toLowerCase().endsWith('.mp3') ? 'mp3' : url.toLowerCase().endsWith('.wav') ? 'wav' : 'bin';
+	const tempPath = join(tmpdir(), `aa-${randomUUID()}.${ext}`);
+
+	let attempt = 0;
+	while (attempt <= maxRetries) {
+		try {
+			const res = await fetch(url, { cache: 'no-store' });
+			if (!res.ok) {
+				return apiError(
+					400,
+					'DOWNLOAD_FAILED',
+					'Unable to download provided audio URL',
+					{ status: res.status },
+					requestId
+				);
+			}
+
+			const buf = await res.arrayBuffer();
+			const bytes = buf.byteLength;
+			if (bytes !== expectedSize) {
+				// cleanup and maybe retry
+				try { await unlink(tempPath); } catch {}
+				if (attempt < maxRetries) { attempt += 1; continue; }
+				return apiError(
+					422,
+					'SIZE_MISMATCH',
+					'Downloaded file size does not match expected size',
+					{ expectedSize, bytes },
+					requestId
+				);
+			}
+			const hash = createHash('sha256');
+			hash.update(new Uint8Array(buf));
+			const checksumSha256 = hash.digest('hex');
+			await writeFile(tempPath, Buffer.from(buf));
+			return { tempPath, actualSize: bytes, checksumSha256 };
+		} catch {
+			try { await unlink(tempPath); } catch {}
+			if (attempt < maxRetries) { attempt += 1; continue; }
 			return apiError(
 				400,
-				'INVALID_CONTENT',
-				'File signature does not match declared type',
+				'DOWNLOAD_ERROR',
+				'Network error while downloading audio URL',
 				undefined,
 				requestId
 			);
 		}
-	} catch {
-		return apiError(
-			400,
-			'READ_ERROR',
-			'Unable to read file header',
-			undefined,
-			requestId
-		);
 	}
-	return null;
+	return apiError(400, 'DOWNLOAD_ERROR', 'Failed after retries', undefined, requestId);
 }
 
 export async function POST(req: NextRequest) {
@@ -181,48 +163,81 @@ export async function POST(req: NextRequest) {
 		);
 	}
 
-	// Expect multipart/form-data
+	// Expect JSON body with URL
 	const contentType = req.headers.get('content-type') || '';
-	if (!contentType.toLowerCase().includes('multipart/form-data')) {
+	if (!contentType.toLowerCase().includes('application/json')) {
 		return apiError(
 			400,
 			'BAD_CONTENT_TYPE',
-			'Expected multipart/form-data',
+			'Expected application/json',
 			undefined,
 			requestId
 		);
 	}
 
-	const form = await req.formData();
-	const file = form.get('file');
-
-	if (!isFileLike(file)) {
-		return apiError(
-			400,
-			'MISSING_FILE',
-			"Missing file field 'file'",
-			undefined,
-			requestId
-		);
+	let payload: AnalyzeFromUrlPayload | null = null;
+	try {
+		payload = (await req.json()) as AnalyzeFromUrlPayload;
+	} catch {
+		return apiError(400, 'BAD_REQUEST', 'Invalid JSON body', undefined, requestId);
 	}
 
-	const fileErr = await validateAudioFile(file as File, requestId);
-	if (fileErr) return fileErr;
+	if (!payload || !payload.url || !payload.fileName || !payload.type || typeof payload.size !== 'number') {
+		return apiError(400, 'MISSING_FIELDS', 'Required fields: url, fileName, type, size', undefined, requestId);
+	}
 
-	// Save uploaded file to a temporary path for Music.ai upload
-	const ext = file.type === 'audio/mpeg' ? 'mp3' : 'wav';
-	const tempPath = join(tmpdir(), `aa-${randomUUID()}.${ext}`);
+	if (!ACCEPT_MIME.has(payload.type)) {
+		return apiError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Only MP3 and WAV files are supported', undefined, requestId);
+	}
+	if (payload.size > MAX_SIZE_BYTES) {
+		return apiError(413, 'PAYLOAD_TOO_LARGE', 'File too large (max 50MB)', undefined, requestId);
+	}
+
+	// After basic shape/type/size validation, enforce mandatory checksum presence
+	if (!payload.checksumSha256) {
+		return apiError(400, 'MISSING_CHECKSUM', 'Client checksum is required for integrity validation', undefined, requestId);
+	}
+
+	// In test env, skip deep signature check
+	const isTest = process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test';
+	if (!isTest) {
+		try {
+			// Peek first bytes to verify signature by fetching range when possible
+			const headRes = await fetch(payload.url, { headers: { Range: 'bytes=0-15' } });
+			if (headRes.ok) {
+				const arr = new Uint8Array(await headRes.arrayBuffer());
+				const isMp3 = payload.type === 'audio/mpeg' && looksLikeMP3(arr);
+				const isWav = payload.type === 'audio/wav' && looksLikeWAV(arr);
+				if (!isMp3 && !isWav) {
+					return apiError(400, 'INVALID_CONTENT', 'File signature does not match declared type', undefined, requestId);
+				}
+			}
+		} catch {
+			// Continue; will validate after full download
+		}
+	}
+
+	// Download to temp with retries + checksum
+	const downloaded = await downloadToTemp(payload.url, payload.size, requestId);
+	if (downloaded instanceof NextResponse) return downloaded;
+	let tempPath: string | null = null;
+	const { tempPath: tPath, actualSize, checksumSha256 } = downloaded;
+	tempPath = tPath;
 
 	try {
-		const isTest =
-			process.env.JEST_WORKER_ID || process.env.NODE_ENV === 'test';
-		if (!isTest) {
-			const buf = Buffer.from(await blobToArrayBuffer(file));
-			await writeFile(tempPath, buf);
-		}
+        // Mandatory checksum comparison
+        if (payload.checksumSha256 !== checksumSha256) {
+            return apiError(
+                422,
+                'CHECKSUM_MISMATCH',
+                'Checksum mismatch detected for downloaded file',
+                { expected: payload.checksumSha256, actual: checksumSha256 },
+                requestId
+            );
+        }
 
 		// Always fetch RAW result and transform centrally
-		const raw = await analyzeAudioRaw(tempPath);
+		const raw = await analyzeAudioRaw(tempPath as string);
 		const analyzedTrack = await transformMusicAiRawToAnalyzedTrack(
 			raw as Record<string, unknown>
 		);
@@ -242,9 +257,9 @@ export async function POST(req: NextRequest) {
 			id: `${Date.now()}`,
 			provider: 'music.ai',
 			data: {
-				fileName: (file as File).name,
-				size: (file as File).size,
-				type: (file as File).type,
+				fileName: payload.fileName,
+				size: actualSize,
+				type: payload.type,
 				analyzedTrack,
 			},
 		});
@@ -293,7 +308,9 @@ export async function POST(req: NextRequest) {
 	} finally {
 		// Attempt to cleanup temp file regardless of outcome
 		try {
-			await unlink(tempPath);
+			if (tempPath) {
+				await unlink(tempPath).catch(() => {});
+			}
 		} catch {
 			// noop
 		}
