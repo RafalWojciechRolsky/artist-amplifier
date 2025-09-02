@@ -24,7 +24,17 @@ Zewnętrzne integracje obsługujemy wyłącznie z BFF (Route Handlers) — klucz
 - **Retry/Backoff**: na 429/5xx max 2 próby z exponential backoff (np. 250 ms, 750 ms) w ramach budżetu czasu.
 - **Dane**: brak trwałego storage; plik tylko tymczasowo (np. `/tmp`) na czas uploadu do Music.ai.
 
-## 7.2 LLM — Text Generation (Provider TBC)
+## 7.2 Vercel Blob — File Storage
+
+- **Dostęp**: SDK `@vercel/blob` (Node, w BFF) i `@vercel/blob/client` (w przeglądarce). Auth przez `BLOB_READ_WRITE_TOKEN` (ENV).
+- **Konfiguracja**: Konfiguracja odbywa się automatycznie przez Vercel Environment Variables. Token jest ustawiany w dashboardzie Vercel.
+- **Endpointy**: 
+  - `/api/upload` — endpoint do generowania signed URL dla uploadu plików
+  - `handleUpload` — funkcja z `@vercel/blob/client` do obsługi uploadu
+- **Bezpieczeństwo**: Token tylko w BFF; klient dostaje tylko signed URL do bezpośredniego uploadu.
+- **Rotacja kluczy**: Vercel automatycznie zarządza rotacją tokenów. W razie potrzeby ręcznej rotacji, nowy token należy ustawić w dashboardzie Vercel.
+
+## 7.3 LLM — Text Generation (Provider TBC)
 
 - **Dostęp**: provider do potwierdzenia (OpenAI‑compatible lub inny). Klucze w ENV (`LLM_API_KEY`).
 - **Model**: `LLM_MODEL` w ENV (np. `gpt-4o-mini` lub inny odpowiednik). Możliwy parametr `temperature` (domyślnie umiarkowany).

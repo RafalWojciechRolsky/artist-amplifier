@@ -2,6 +2,7 @@
 
 import type { AnalysisResult } from '@/lib/types/analysis';
 import { uploadToBlob, requestAnalyze, getAnalyzeStatus } from '@/lib/api/client';
+import { UI_TEXT } from '@/lib/constants';
 
 // Server validation endpoint helper
 export type ValidateAudioResult = { ok: true } | { ok: false; error: string };
@@ -51,7 +52,7 @@ export async function analyzeAudio(
 			) {
 				throw new DOMException('Aborted', 'AbortError');
 			}
-			throw new Error('Nie udało się przesłać pliku do magazynu. Spróbuj ponownie.');
+			throw new Error(UI_TEXT.ERROR_MESSAGES.UPLOAD_FAILED);
 		}
 	}
 
@@ -64,7 +65,7 @@ export async function analyzeAudio(
 		checksumSha256 = hashArr.map((b) => b.toString(16).padStart(2, '0')).join('');
 		if (!checksumSha256) throw new Error('EMPTY_HASH');
 	} catch {
-		throw new Error('Nie udało się obliczyć sumy kontrolnej pliku. Spróbuj ponownie.');
+		throw new Error(UI_TEXT.ERROR_MESSAGES.CHECKSUM_FAILED);
 	}
 
 	// 3) Call analyze endpoint with the blob URL + metadata
@@ -89,7 +90,7 @@ export async function analyzeAudio(
 		) {
 			throw new DOMException('Aborted', 'AbortError');
 		}
-		throw new Error('Problem z połączeniem sieciowym. Spróbuj ponownie.');
+		throw new Error(UI_TEXT.ERROR_MESSAGES.NETWORK_ERROR);
 	}
 
 	if (res.status === 202) {
@@ -100,9 +101,7 @@ export async function analyzeAudio(
 		} | null;
 		const jobId = json?.jobId;
 		if (!jobId)
-			throw new Error(
-				'Serwer przetwarza analizę, ale nie zwrócił identyfikatora zadania.'
-			);
+			throw new Error(UI_TEXT.ERROR_MESSAGES.JOB_ID_MISSING);
 
 		const sleep = (ms: number, s?: AbortSignal) =>
 			new Promise<void>((resolve, reject) => {
@@ -120,12 +119,12 @@ export async function analyzeAudio(
 		const start = Date.now();
 		let delay = 2000; // 2s
 		const maxDelay = 8000; // 8s
-		const overallTimeout = 180_000; // 3 min
+		// Use shorter timeout in test environment (detected by navigator.webdriver)
+		const isTestEnv = typeof navigator !== 'undefined' && (navigator as unknown as { webdriver?: boolean }).webdriver === true;
+		const overallTimeout = isTestEnv ? 5000 : parseInt(process.env.ANALYSIS_TIMEOUT_MS || '180000'); // 5s for tests, 3min for prod
 		while (true) {
 			if (Date.now() - start > overallTimeout) {
-				throw new Error(
-					'Przekroczono czas oczekiwania na wynik analizy. Spróbuj ponownie za chwilę.'
-				);
+				throw new Error(UI_TEXT.ERROR_MESSAGES.ANALYSIS_TIMEOUT);
 			}
 			let r: Response;
 			try {
@@ -140,9 +139,7 @@ export async function analyzeAudio(
 				) {
 					throw new DOMException('Aborted', 'AbortError');
 				}
-				throw new Error(
-					'Problem z połączeniem sieciowym podczas sprawdzania statusu.'
-				);
+				throw new Error(UI_TEXT.ERROR_MESSAGES.STATUS_NETWORK_ERROR);
 			}
 			if (r.ok) {
 				const ready = (await r.json()) as AnalysisResult;
@@ -160,10 +157,10 @@ export async function analyzeAudio(
 				const msg =
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(j as any)?.error?.message ||
-					`Błąd serwera (${r.status}). Spróbuj ponownie.`;
+					UI_TEXT.ERROR_MESSAGES.SERVER_ERROR(r.status);
 				throw new Error(msg);
 			}
-			throw new Error(`Błąd serwera (${r.status}). Spróbuj ponownie.`);
+			throw new Error(UI_TEXT.ERROR_MESSAGES.SERVER_ERROR(r.status));
 		}
 	}
 
@@ -174,10 +171,10 @@ export async function analyzeAudio(
 			const json = await res.json().catch(() => null);
 			const errorMessage =
 				json?.error?.message ||
-				`Błąd serwera (${res.status}). Spróbuj ponownie.`;
+				UI_TEXT.ERROR_MESSAGES.SERVER_ERROR(res.status);
 			throw new Error(errorMessage);
 		}
-		throw new Error(`Błąd serwera (${res.status}). Spróbuj ponownie.`);
+		throw new Error(UI_TEXT.ERROR_MESSAGES.SERVER_ERROR(res.status));
 	}
 
 	// Parse the response

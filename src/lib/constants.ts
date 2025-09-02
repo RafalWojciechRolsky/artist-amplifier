@@ -38,6 +38,15 @@ export const UI_TEXT = {
     AUDIO_FORMAT_INVALID: 'Nieprawidłowy format pliku. Dozwolone: .mp3, .wav.',
     AUDIO_SIZE_INVALID: 'Plik jest zbyt duży. Maksymalny rozmiar to 50MB.',
   },
+  ERROR_MESSAGES: {
+    UPLOAD_FAILED: 'Nie udało się przesłać pliku do magazynu. Spróbuj ponownie.',
+    CHECKSUM_FAILED: 'Nie udało się obliczyć sumy kontrolnej pliku. Spróbuj ponownie.',
+    NETWORK_ERROR: 'Problem z połączeniem sieciowym. Spróbuj ponownie.',
+    JOB_ID_MISSING: 'Serwer przetwarza analizę, ale nie zwrócił identyfikatora zadania.',
+    ANALYSIS_TIMEOUT: 'Przekroczono czas oczekiwania na wynik analizy. Spróbuj ponownie za chwilę.',
+    STATUS_NETWORK_ERROR: 'Problem z połączeniem sieciowym podczas sprawdzania statusu.',
+    SERVER_ERROR: (status: number) => `Błąd serwera (${status}). Spróbuj ponownie.`,
+  },
   BUTTONS: {
     SUBMIT_IDLE: 'Analizuj utwór',
     SUBMIT_LOADING: 'Analiza audio...',
