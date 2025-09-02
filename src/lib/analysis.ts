@@ -1,6 +1,7 @@
 'use client';
 
 import type { AnalysisResult } from '@/lib/types/analysis';
+import { uploadToBlob, requestAnalyze, getAnalyzeStatus } from '@/lib/api/client';
 
 // Server validation endpoint helper
 export type ValidateAudioResult = { ok: true } | { ok: false; error: string };
@@ -31,22 +32,16 @@ export async function analyzeAudio(
 	const { signal } = opts ?? {};
 
 	// 1) Upload file directly to Vercel Blob via client SDK
-	// In automated E2E (Playwright sets navigator.webdriver) or NODE_ENV==='test', skip real network upload.
+	// In automated E2E (Playwright sets navigator.webdriver) skip real network upload.
 	let blobUrl: string;
 	const isAutomated =
 		typeof navigator !== 'undefined' && (navigator as unknown as { webdriver?: boolean }).webdriver === true;
-	const isTest = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
-	if (isAutomated || isTest) {
+	if (isAutomated) {
 		blobUrl = 'https://example.com/mock-upload.mp3';
 	} else {
 		try {
-			const { upload } = await import('@vercel/blob/client');
-			const putRes = await upload(file.name, file, {
-				access: 'public',
-				contentType: file.type,
-				handleUploadUrl: '/api/upload',
-			});
-			blobUrl = putRes.url;
+			const { url } = await uploadToBlob(file);
+			blobUrl = url;
 		} catch (e: unknown) {
 			const err = e as { name?: string; code?: string; message?: string };
 			if (
@@ -75,18 +70,16 @@ export async function analyzeAudio(
 	// 3) Call analyze endpoint with the blob URL + metadata
 	let res: Response;
 	try {
-		res = await fetch('/api/audio/analyze', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
+		res = await requestAnalyze(
+			{
 				url: blobUrl,
 				fileName: file.name,
 				size: file.size,
 				type: file.type,
 				checksumSha256,
-			}),
-			signal,
-		});
+			},
+			{ signal }
+		);
 	} catch (e: unknown) {
 		const err = e as { name?: string; code?: string; message?: string };
 		if (
@@ -136,10 +129,7 @@ export async function analyzeAudio(
 			}
 			let r: Response;
 			try {
-				r = await fetch(
-					`/api/audio/analyze/status?jobId=${encodeURIComponent(jobId)}`,
-					{ signal }
-				);
+				r = await getAnalyzeStatus(jobId, { signal });
 			} catch (e: unknown) {
 				const err = e as { name?: string; code?: string; message?: string };
 				if (

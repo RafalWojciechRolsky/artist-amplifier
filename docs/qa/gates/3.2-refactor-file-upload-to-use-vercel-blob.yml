@@ -1,12 +1,38 @@
 schema: 1
 story: '3.2'
+story_title: 'Story 3.2: Refactor File Upload to Use Vercel Blob'
 gate: CONCERNS
-status_reason: 'The story has a high-risk item related to data integrity. Mitigation strategies should be implemented.'
-reviewer: 'Quinn'
-updated: '2025-09-02T12:00:00Z'
+status_reason: 'The implementation meets core requirements but has specific areas of concern around data integrity and error handling that require attention.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-09-03T00:04:35+02:00'
 top_issues:
   - id: 'DATA-001'
     severity: high
     finding: 'Incomplete or corrupted uploads could cause the analysis to fail.'
-    suggested_action: 'Implement checksum validation on the backend and a retry mechanism on the frontend.'
+    suggested_action: 'Make checksum validation mandatory and implement a comprehensive retry mechanism for failed uploads.'
+  - id: 'ERROR-001'
+    severity: medium
+    finding: 'Error handling for network interruptions during upload is incomplete.'
+    suggested_action: 'Add more robust error handling for intermittent connection issues with appropriate user feedback.'
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'Edge case testing for upload failures is limited.'
+    suggested_action: 'Expand test coverage to include network failures, partial uploads, and validation edge cases.'
+  - id: 'DOC-001'
+    severity: low
+    finding: 'Vercel Blob configuration and keys management lacks documentation.'
+    suggested_action: 'Add detailed documentation about Vercel Blob setup and security practices.'
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'Auth/authorization strategy for token issuance not documented; keys are server-side.'
+  performance:
+    status: PASS
+    notes: 'Limits appropriate; blob direct upload; background 202 flow available.'
+  reliability:
+    status: CONCERNS
+    notes: 'E2E scenarios for failure paths and polling not yet covered.'
+  maintainability:
+    status: PASS
+    notes: 'Clear separation of concerns; thin client and server validations.'
 waiver: { active: false }
