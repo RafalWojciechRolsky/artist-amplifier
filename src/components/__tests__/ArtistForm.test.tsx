@@ -28,28 +28,34 @@ function Wrapper({
   );
 }
 
-function setup(initial: ArtistFormValue = { artistName: '', artistDescription: '' }) {
+function setup(
+  initial: ArtistFormValue = { artistName: '', songTitle: '', artistDescription: '' }
+) {
   mockOnSubmit.mockClear();
   // Using delay: null speeds up tests significantly
   const user = userEvent.setup({ delay: null });
   const { rerender } = render(<Wrapper initial={initial} />);
   const name = screen.getByLabelText(/nazwa artysty\/zespołu/i) as HTMLInputElement;
+  const title = screen.getByLabelText(/tytuł utworu/i) as HTMLInputElement;
   const desc = screen.getByLabelText(/opis artysty/i) as HTMLTextAreaElement;
   const submitBtn = screen.getByRole('button', { name: /analizuj utwór/i });
-  return { user, name, desc, submitBtn, mockOnSubmit, rerender };
+  return { user, name, title, desc, submitBtn, mockOnSubmit, rerender };
 }
 
 describe('ArtistForm', () => {
   afterEach(cleanup);
   test('shows required errors after fields are touched', async () => {
-    const { user, name, desc } = setup();
+    const { user, name, title, desc } = setup();
 
     await user.click(name);
     await user.tab(); // blur name
+    await user.click(title);
+    await user.tab(); // blur title
     await user.click(desc);
     await user.tab(); // blur desc
 
     expect(await screen.findByText(/pole 'nazwa artysty\/zespołu' jest wymagane/i)).toBeInTheDocument();
+    expect(await screen.findByText(/pole 'tytuł utworu' jest wymagane/i)).toBeInTheDocument();
     expect(await screen.findByText(/pole 'opis artysty' jest wymagane/i)).toBeInTheDocument();
   });
 
@@ -87,7 +93,7 @@ describe('ArtistForm', () => {
 
 describe('ArtistForm – additional high-priority cases', () => {
   test('no errors are shown before fields are touched (pristine state)', () => {
-    render(<Wrapper initial={{ artistName: '', artistDescription: '' }} />);
+    render(<Wrapper initial={{ artistName: '', songTitle: '', artistDescription: '' }} />);
     // No generic required messages should be visible yet
     expect(screen.queryByText(/jest wymagane/i)).toBeNull();
     // No min/max messages visible
@@ -138,30 +144,35 @@ describe('ArtistForm – additional high-priority cases', () => {
     await user.click(submitBtn);
 
     expect(await screen.findByText(/pole 'nazwa artysty\/zespołu' jest wymagane/i)).toBeInTheDocument();
+    expect(await screen.findByText(/pole 'tytuł utworu' jest wymagane/i)).toBeInTheDocument();
     expect(await screen.findByText(/pole 'opis artysty' jest wymagane/i)).toBeInTheDocument();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
   test('shows only description error and does not submit (TC1.2)', async () => {
-    const { user, name, submitBtn } = setup();
+    const { user, name, title, submitBtn } = setup();
 
     await user.type(name, 'Valid Artist Name');
+    await user.type(title, 'Valid Song Title');
     await user.click(submitBtn);
 
     expect(await screen.findByText(/pole 'opis artysty' jest wymagane/i)).toBeInTheDocument();
     expect(screen.queryByText(/pole 'nazwa artysty\/zespołu' jest wymagane/i)).toBeNull();
+    expect(screen.queryByText(/pole 'tytuł utworu' jest wymagane/i)).toBeNull();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
   test('submits valid data successfully (TC2.3)', async () => {
-    const { user, name, desc, submitBtn } = setup();
+    const { user, name, title, desc, submitBtn } = setup();
 
     const validData = {
       artistName: 'Valid Artist Name',
+      songTitle: 'Valid Song Title',
       artistDescription: 'a'.repeat(MIN_DESCRIPTION),
     };
 
     await user.type(name, validData.artistName);
+    await user.type(title, validData.songTitle);
     await user.type(desc, validData.artistDescription);
     await user.click(submitBtn);
 
@@ -174,9 +185,10 @@ describe('ArtistForm – additional high-priority cases', () => {
   });
 
   test('submits successfully with minimum description length', async () => {
-    const { user, name, desc, submitBtn } = setup();
+    const { user, name, title, desc, submitBtn } = setup();
 
     await user.type(name, 'Artist');
+    await user.type(title, 'Song');
     await user.type(desc, 'a'.repeat(MIN_DESCRIPTION));
     await user.click(submitBtn);
 
@@ -186,9 +198,10 @@ describe('ArtistForm – additional high-priority cases', () => {
   });
 
   test('submits successfully with maximum description length', async () => {
-    const { user, name, desc, submitBtn } = setup();
+    const { user, name, title, desc, submitBtn } = setup();
 
     await user.type(name, 'Artist');
+    await user.type(title, 'Song');
     await user.type(desc, 'b'.repeat(MAX_DESCRIPTION));
     await user.click(submitBtn);
 
@@ -198,8 +211,9 @@ describe('ArtistForm – additional high-priority cases', () => {
   });
 
   test('form fields have required attribute (TC4.3)', () => {
-    const { name, desc } = setup();
+    const { name, title, desc } = setup();
     expect(name).toBeRequired();
+    expect(title).toBeRequired();
     expect(desc).toBeRequired();
   });
 
@@ -215,11 +229,13 @@ describe('ArtistForm – additional high-priority cases', () => {
     });
   });
 
-  test('keyboard Tab sequence is logical (name -> desc -> submit) (TC4.1)', async () => {
-    const { user, name, desc, submitBtn } = setup();
+  test('keyboard Tab sequence is logical (name -> title -> desc -> submit) (TC4.1)', async () => {
+    const { user, name, title, desc, submitBtn } = setup();
 
     await user.tab();
     expect(document.activeElement).toBe(name);
+    await user.tab();
+    expect(document.activeElement).toBe(title);
     await user.tab();
     expect(document.activeElement).toBe(desc);
     await user.tab();

@@ -25,6 +25,7 @@ describe('API /api/audio/generate', () => {
     ]);
     const payload = {
       artistName: 'Tester',
+      songTitle: 'Hit Single',
       artistDescription: 'x'.repeat(60),
       language: 'pl',
       analysis: {
@@ -93,6 +94,7 @@ describe('API /api/audio/generate', () => {
 
     const payload = {
       artistName: 'LLM429',
+      songTitle: 'Rate Limit Song',
       artistDescription: 'x'.repeat(60),
       language: 'pl',
       analysis: { id: 'job-2', provider: 'stub', data: {} },

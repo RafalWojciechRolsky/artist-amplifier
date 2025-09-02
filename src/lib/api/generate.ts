@@ -39,6 +39,8 @@ function mapApiErrorToMessage(err: unknown): string {
       return 'Nie udało się odczytać pliku. Spróbuj ponownie.';
     case 'INVALID_ARTIST_NAME':
       return 'Pole „Nazwa artysty” jest wymagane.';
+    case 'INVALID_SONG_TITLE':
+      return 'Pole „Tytuł utworu” jest wymagane.';
     case 'INVALID_ARTIST_DESCRIPTION':
       return 'Opis artysty musi mieć od 50 do 1000 znaków.';
     default:
@@ -53,6 +55,7 @@ export async function generateDescription(
 ): Promise<string> {
   const payload = {
     artistName: form.artistName,
+    songTitle: form.songTitle,
     artistDescription: form.artistDescription,
     language: opts?.language ?? 'pl',
     template: opts?.template,

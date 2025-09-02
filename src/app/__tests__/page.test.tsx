@@ -19,7 +19,33 @@ describe('Home Page - Audio Analysis Flow', () => {
   });
 
   it('should trigger analysis, update UI, and save to sessionStorage on success', async () => {
-    const mockAnalysisResult = { id: 'xyz-789', provider: 'stub', data: { tempo: 140, key: 'G' } };
+    const mockAnalysisResult = {
+      id: 'xyz-789',
+      provider: 'stub',
+      data: {
+        tempo: 140,
+        key: 'G',
+        analyzedTrack: {
+          lyrics: '',
+          chords: [],
+          moods: ['energetic'],
+          genres: ['pop'],
+          subgenres: [],
+          instruments: [],
+          movements: [],
+          energyLevel: 'medium',
+          emotion: 'joy',
+          language: 'pl',
+          key: 'G',
+          timeSignature: '4/4',
+          voiceGender: 'female',
+          voicePresence: 'lead',
+          musicalEra: 'modern',
+          duration: 200,
+          cover: '',
+        },
+      },
+    };
     mockedAnalyzeAudio.mockImplementation(async () => {
       await new Promise(resolve => setTimeout(resolve, 10)); // Short delay
       return mockAnalysisResult;
@@ -29,6 +55,7 @@ describe('Home Page - Audio Analysis Flow', () => {
 
     // 0. Fill the form
     fireEvent.change(screen.getByLabelText(/Nazwa artysty/i), { target: { value: 'Test Artist' } });
+    fireEvent.change(screen.getByLabelText(/Tytuł utworu/i), { target: { value: 'Song A' } });
     fireEvent.change(screen.getByLabelText(/Opis artysty/i), { target: { value: 'A'.repeat(51) } });
 
     // 1. Upload a valid file
@@ -76,6 +103,7 @@ describe('Home Page - Audio Analysis Flow', () => {
 
     // Fill the form
     fireEvent.change(screen.getByLabelText(/Nazwa artysty/i), { target: { value: 'Test Artist' } });
+    fireEvent.change(screen.getByLabelText(/Tytuł utworu/i), { target: { value: 'Cancelable Song' } });
     fireEvent.change(screen.getByLabelText(/Opis artysty/i), { target: { value: 'A'.repeat(51) } });
 
     const file = new File(['(⌐□_□)'], 'cancellable.mp3', { type: 'audio/mpeg' });
@@ -111,6 +139,7 @@ describe('Home Page - Audio Analysis Flow', () => {
 
     // Fill the form
     fireEvent.change(screen.getByLabelText(/Nazwa artysty/i), { target: { value: 'Test Artist' } });
+    fireEvent.change(screen.getByLabelText(/Tytuł utworu/i), { target: { value: 'Error Song' } });
     fireEvent.change(screen.getByLabelText(/Opis artysty/i), { target: { value: 'A'.repeat(51) } });
 
     const file = new File(['(⌐□_□)'], 'error.mp3', { type: 'audio/mpeg' });
@@ -123,12 +152,9 @@ describe('Home Page - Audio Analysis Flow', () => {
       fireEvent.click(analyzeButton);
     });
 
-    // Wait for error message to be displayed
-    await waitFor(() => {
-      const fileInput = screen.getByLabelText(/Plik utworu/i);
-      const errorId = fileInput.getAttribute('aria-describedby');
-      expect(document.getElementById(errorId!)).toHaveTextContent(/Błąd analizy/i);
-    });
+    // Wait for specific error message element to be displayed
+    const errEl = await screen.findByTestId('audio-error');
+    expect(errEl).toHaveTextContent(/Błąd analizy/i);
 
     // Assert UI returns to idle state but shows an error
     const finalAnalyzeButton = await screen.findByRole('button', { name: /Analizuj utwór/i });
@@ -136,7 +162,33 @@ describe('Home Page - Audio Analysis Flow', () => {
   });
 
   it('should load initial state from sessionStorage', () => {
-    const mockAnalysisResult = { id: 'restored-456', provider: 'stub', data: { tempo: 90, key: 'D' } };
+    const mockAnalysisResult = {
+      id: 'restored-456',
+      provider: 'stub',
+      data: {
+        tempo: 90,
+        key: 'D',
+        analyzedTrack: {
+          lyrics: '',
+          chords: [],
+          moods: ['calm'],
+          genres: ['ambient'],
+          subgenres: [],
+          instruments: [],
+          movements: [],
+          energyLevel: 'low',
+          emotion: 'relaxed',
+          language: 'pl',
+          key: 'D',
+          timeSignature: '4/4',
+          voiceGender: 'male',
+          voicePresence: 'lead',
+          musicalEra: 'modern',
+          duration: 180,
+          cover: '',
+        },
+      },
+    };
     analysisResultStorage.set(mockAnalysisResult);
 
     render(<Page />);
