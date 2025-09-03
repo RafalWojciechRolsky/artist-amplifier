@@ -1,6 +1,57 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
+// Deterministic, codec-independent audio metadata stub used in-browser
+async function mockAudioDuration(
+  page: import('@playwright/test').Page,
+  durationSeconds: number,
+) {
+  await page.addInitScript(({ duration }) => {
+    // Expose a global to control the duration from tests
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__E2E_AUDIO_DURATION = duration;
+
+    // Patch only once
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const proto = HTMLMediaElement.prototype as any;
+    if (!proto.__e2ePatched) {
+      Object.defineProperty(proto, '__e2ePatched', { value: true });
+
+      // Provide a getter for duration based on the global
+      Object.defineProperty(proto, 'duration', {
+        get() {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (window as any).__E2E_AUDIO_DURATION ?? 30;
+        },
+        configurable: true,
+      });
+
+      // When src is assigned, dispatch loadedmetadata soon after
+      const srcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+      if (srcDesc && srcDesc.set) {
+        Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+          set(val) {
+            // call original setter
+            srcDesc.set!.call(this, val);
+            // asynchronously notify listeners that metadata is available
+            setTimeout(() => {
+              this.dispatchEvent(new Event('loadedmetadata'));
+            }, 0);
+          },
+          get: srcDesc.get,
+          configurable: true,
+          enumerable: srcDesc.enumerable ?? false,
+        });
+      }
+    }
+  }, { duration: durationSeconds });
+}
+
+test.beforeEach(async ({ page }) => {
+  // Keep duration under limit; size/type checks are handled via fixtures
+  await mockAudioDuration(page, 30);
+});
+
 // Test for network abort during upload
 test('network abort during file upload', async ({ page }) => {
   // Mock the upload endpoint to simulate an abort
