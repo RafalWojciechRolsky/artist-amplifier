@@ -154,3 +154,56 @@ if (!(global as any).Response) {
 		});
 	}
 );
+
+// ----------
+// JSDOM audio helpers for client-side validation
+// Provide URL.createObjectURL/revokeObjectURL and simulate metadata load
+try {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const URLRef: any = (global as any).URL || {};
+  if (typeof URLRef.createObjectURL !== 'function') {
+    URLRef.createObjectURL = jest.fn(() => 'blob:jest-mock');
+  }
+  if (typeof URLRef.revokeObjectURL !== 'function') {
+    URLRef.revokeObjectURL = jest.fn(() => undefined);
+  }
+  // Re-assign back in case URL was undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (global as any).URL = URLRef;
+
+  // Patch HTMLMediaElement only once
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proto: any = (global as any).HTMLMediaElement?.prototype;
+  if (proto && !proto.__jestPatched) {
+    Object.defineProperty(proto, '__jestPatched', { value: true });
+
+    // Default duration is short (valid)
+    if (!Object.getOwnPropertyDescriptor(proto, 'duration')) {
+      Object.defineProperty(proto, 'duration', {
+        get() {
+          // Allow tests to override via global
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (global as any).__JEST_AUDIO_DURATION ?? 30;
+        },
+        configurable: true,
+      });
+    }
+
+    const srcDesc = Object.getOwnPropertyDescriptor(proto, 'src');
+    if (srcDesc?.set) {
+      Object.defineProperty(proto, 'src', {
+        set(val) {
+          srcDesc.set!.call(this, val);
+          setTimeout(() => {
+            this.dispatchEvent(new Event('loadedmetadata'));
+          }, 0);
+        },
+        get: srcDesc.get,
+        configurable: true,
+        enumerable: srcDesc.enumerable ?? false,
+      });
+    }
+  }
+} catch {
+  // ignore environment where JSDOM not present
+}
