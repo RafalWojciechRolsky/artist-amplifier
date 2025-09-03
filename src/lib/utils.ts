@@ -1,5 +1,7 @@
 "use client";
 
+import { AUDIO, UI_TEXT } from "@/lib/constants";
+
 // Utility: normalize and sanitize a filename into a safe, lowercase slug
 export function sanitizeFilename(input: string): string {
   const ascii = input
@@ -69,4 +71,55 @@ export function downloadTextFile(filename: string, content: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Validate an audio file against size and duration constraints
+export type ValidationResult = {
+  isValid: boolean;
+  message?: string;
+};
+
+export function validateAudioFile(file: File): Promise<ValidationResult> {
+  return new Promise((resolve) => {
+    // 1. Check file size
+    if (file.size > AUDIO.MAX_SIZE_BYTES) {
+      resolve({
+        isValid: false,
+        message: UI_TEXT.VALIDATION_MESSAGES.AUDIO_SIZE_INVALID,
+      });
+      return;
+    }
+
+    // 2. Check audio duration
+    const audio = document.createElement("audio");
+    const objectUrl = URL.createObjectURL(file);
+
+    const cleanup = () => {
+      URL.revokeObjectURL(objectUrl);
+      audio.remove();
+    };
+
+    audio.addEventListener("loadedmetadata", () => {
+      if (audio.duration > AUDIO.MAX_DURATION_SECONDS) {
+        resolve({
+          isValid: false,
+          message: UI_TEXT.VALIDATION_MESSAGES.AUDIO_DURATION_INVALID,
+        });
+      } else {
+        resolve({ isValid: true });
+      }
+      cleanup();
+    });
+
+    audio.addEventListener("error", () => {
+      // This might happen for non-audio files or corrupted files
+      resolve({
+        isValid: false,
+        message: UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID, // Generic message is suitable here
+      });
+      cleanup();
+    });
+
+    audio.src = objectUrl;
+  });
 }

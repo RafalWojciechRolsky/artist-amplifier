@@ -1,4 +1,5 @@
-import { buildDescriptionFilename, copyToClipboard, downloadTextFile, sanitizeFilename } from '@/lib/utils';
+import { AUDIO, UI_TEXT } from '@/lib/constants';
+import { buildDescriptionFilename, copyToClipboard, downloadTextFile, sanitizeFilename, validateAudioFile } from '@/lib/utils';
 
 describe('utils', () => {
   beforeEach(() => {
@@ -85,5 +86,98 @@ describe('utils', () => {
     expect(appendChild).toHaveBeenCalled();
     expect(removeChild).toHaveBeenCalled();
     expect(revoke).toHaveBeenCalledWith('blob:mock');
+  });
+});
+
+describe('validateAudioFile', () => {
+  const mockSuccessUrl = 'blob:success';
+  const mockErrorUrl = 'blob:error';
+
+  beforeEach(() => {
+    // Mock URL.createObjectURL
+    global.URL.createObjectURL = jest.fn((obj: Blob | MediaSource) => {
+      if (obj instanceof Blob && obj.type.startsWith('audio/')) {
+        return mockSuccessUrl;
+      }
+      return mockErrorUrl;
+    });
+    global.URL.revokeObjectURL = jest.fn();
+
+    // Mock HTMLAudioElement
+    const mockAudioElement = {
+      events: {} as Record<string, (() => void)[] | undefined>,
+      addEventListener: jest.fn((event, callback) => {
+        if (!mockAudioElement.events[event]) {
+          mockAudioElement.events[event] = [];
+        }
+        mockAudioElement.events[event]?.push(callback as () => void);
+      }),
+      remove: jest.fn(),
+      set src(url: string) {
+        if (url === mockSuccessUrl) {
+          // Simulate async metadata load
+          setTimeout(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).duration = 300; // 5 minutes
+            mockAudioElement.events['loadedmetadata']?.forEach(cb => cb());
+          }, 0);
+        } else {
+          setTimeout(() => {
+            mockAudioElement.events['error']?.forEach(cb => cb());
+          }, 0);
+        }
+      },
+    };
+
+    jest.spyOn(document, 'createElement').mockReturnValue(mockAudioElement as unknown as HTMLAudioElement);
+  });
+
+  test('returns valid for a correct file', async () => {
+    const file = new File([''], 'test.mp3', { type: 'audio/mpeg' });
+    Object.defineProperty(file, 'size', { value: AUDIO.MAX_SIZE_BYTES - 1 });
+
+    const result = await validateAudioFile(file);
+    expect(result.isValid).toBe(true);
+  });
+
+  test('returns invalid for a file that is too large', async () => {
+    const file = new File([''], 'test.mp3', { type: 'audio/mpeg' });
+    Object.defineProperty(file, 'size', { value: AUDIO.MAX_SIZE_BYTES + 1 });
+
+    const result = await validateAudioFile(file);
+    expect(result.isValid).toBe(false);
+    expect(result.message).toBe(UI_TEXT.VALIDATION_MESSAGES.AUDIO_SIZE_INVALID);
+  });
+
+  test('returns invalid for a file that is too long', async () => {
+    const file = new File([''], 'test.mp3', { type: 'audio/mpeg' });
+    Object.defineProperty(file, 'size', { value: AUDIO.MAX_SIZE_BYTES - 1 });
+
+    // Adjust mock to return a long duration
+    const longDuration = AUDIO.MAX_DURATION_SECONDS + 1;
+    jest.spyOn(document, 'createElement').mockImplementation(() => ({
+      addEventListener: jest.fn((event, callback) => {
+        if (event === 'loadedmetadata') {
+          setTimeout(() => (callback as () => void)(), 0);
+        }
+      }),
+      remove: jest.fn(),
+      set src(url: string) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this as any).duration = longDuration;
+      },
+      duration: longDuration
+    } as unknown as HTMLAudioElement));
+
+    const result = await validateAudioFile(file);
+    expect(result.isValid).toBe(false);
+    expect(result.message).toBe(UI_TEXT.VALIDATION_MESSAGES.AUDIO_DURATION_INVALID);
+  });
+
+  test('returns invalid for a non-audio file that errors', async () => {
+    const file = new File([''], 'test.txt', { type: 'text/plain' });
+    const result = await validateAudioFile(file);
+    expect(result.isValid).toBe(false);
+    expect(result.message).toBe(UI_TEXT.VALIDATION_MESSAGES.AUDIO_FORMAT_INVALID);
   });
 });

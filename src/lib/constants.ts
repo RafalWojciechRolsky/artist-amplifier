@@ -16,6 +16,7 @@ export const VALIDATION_LIMITS = {
 // Audio upload constraints
 export const AUDIO = {
   MAX_SIZE_BYTES: 50 * 1024 * 1024, // 50MB
+  MAX_DURATION_SECONDS: 10 * 60, // 10 minutes
   ACCEPT_MIME: ['audio/mpeg', 'audio/wav'] as const,
   ACCEPT_EXT: '.mp3,.wav',
 } as const;
@@ -37,6 +38,7 @@ export const UI_TEXT = {
     AUDIO_REQUIRED: 'Wybierz plik audio (.mp3 lub .wav).',
     AUDIO_FORMAT_INVALID: 'Nieprawidłowy format pliku. Dozwolone: .mp3, .wav.',
     AUDIO_SIZE_INVALID: 'Plik jest zbyt duży. Maksymalny rozmiar to 50MB.',
+    AUDIO_DURATION_INVALID: 'Plik audio jest zbyt długi. Maksymalna długość to 10 minut.',
   },
   ERROR_MESSAGES: {
     UPLOAD_FAILED: 'Nie udało się przesłać pliku do magazynu. Spróbuj ponownie.',
