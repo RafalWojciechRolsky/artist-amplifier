@@ -38,9 +38,9 @@ Ten dokument definiuje cele doświadczenia użytkownika, architekturę informacj
 ```mermaid
 graph TD
   A[Single Page - Artist Amplifier Stepper 1-4] --> S1[1 Dane artysty]
-  A --> S2[2 Przeslij utwor]
-  A --> S3[3 Generuj i Edytuj]
-  A --> S4[4 Skopiuj lub Pobierz]
+  A --> S2[2 Analiza utworu]
+  A --> S3[3 Generowanie opisu]
+  A --> S4[4 Gotowe]
 
   S1 -->|Dane poprawne| S2
   S2 -->|Plik zaakceptowany| S3
@@ -74,9 +74,9 @@ graph TD
 
 ```mermaid
 graph TD
-  S1[1 Dane Artysty - poprawne] -->|tak| S2[2 Przeslij Utwor - zaakceptowany]
-  S2 -->|tak| S3[3 Generuj i Edytuj - wynik]
-  S3 -->|tak| S4[4 Skopiuj / Pobierz]
+  S1[1 Dane Artysty - poprawne] -->|tak| S2[2 Analiza utworu - zaakceptowany]
+  S2 -->|tak| S3[3 Generowanie opisu - wynik]
+  S3 -->|tak| S4[4 Gotowe]
 
 ```
 
@@ -100,7 +100,7 @@ graph TD
 - **Przypadki krawędziowe i błędy:** Puste/za krótkie/za długie pola → komunikaty i fokus; auto-scroll do błędnego pola; aria-describedby dla błędów; sesja utrzymuje dane po odświeżeniu; brak przewijania horyzontalnego przy 320px.
 - **Notatki:** PRD 1.1 (AC 1–7).
 
-### Przepływ 2: Przesyłanie Utworu do Analizy {#flow-2}
+### Przepływ 2: Analiza Utworu {#flow-2}
 
 - **Warunki wstępne:** Flow 1 poprawny.
 - **Cel użytkownika:** Wskazać plik .mp3/.wav ≤ 50MB do analizy.
@@ -119,7 +119,7 @@ graph TD
 - **Przypadki krawędziowe i błędy:** Zbyt duży/nieobsługiwany format → komunikat i ponowny wybór; anulowanie wyboru → pozostaje poprzedni stan; „Zmień plik” dostępne.
 - **Notatki:** PRD 1.2 (AC 1–7).
 
-### Przepływ 3: Generowanie i Edycja Opisu {#flow-3} (MVP)
+### Przepływ 3: Generowanie Opisu {#flow-3} (MVP)
 
 - **Warunki wstępne:** Flow 1 + 2 poprawne.
 - **Cel użytkownika:** Wygenerować edytowalny opis.
@@ -136,7 +136,7 @@ graph TD
 - **Uproszczona obsługa błędów:** Jeden komunikat "Coś poszło nie tak. Spróbuj ponownie." + przycisk ponowienia.
 - **Notatki:** PRD 1.3 (AC 1–7).
 
-### Przepływ 4: Wykorzystanie Gotowego Opisu {#flow-4}
+### Przepływ 4: Gotowe {#flow-4}
 
 - **Cel użytkownika:** Skopiować lub pobrać opis.
 - **Punkty wejścia:** Pod textarea: „Kopiuj do schowka”, „Pobierz .txt”, „Reset”.
@@ -161,9 +161,9 @@ graph TD
 | Flow w spec                           | PRD Story | Zakres                                                |
 | :------------------------------------ | :-------- | :---------------------------------------------------- |
 | Flow 1 — Wprowadzanie Danych Artysty  | Story 1.1 | Formularz, walidacja, zapis w sesji                   |
-| Flow 2 — Przesyłanie Utworu           | Story 1.2 | Wybór/zmiana pliku, walidacja, stany analizy          |
-| Flow 3 — Generowanie i Edycja         | Story 1.3 | Analiza → Generowanie, edycja, anulowanie, ponowienie |
-| Flow 4 — Wykorzystanie Gotowego Opisu | Story 1.4 | Kopiuj, Pobierz .txt, toast sukcesu                   |
+| Flow 2 — Analiza Utworu               | Story 1.2 | Wybór/zmiana pliku, walidacja, stany analizy          |
+| Flow 3 — Generowanie Opisu            | Story 1.3 | Analiza → Generowanie, edycja, anulowanie, ponowienie |
+| Flow 4 — Gotowe                       | Story 1.4 | Kopiuj, Pobierz .txt, toast sukcesu                   |
 
 ## Makiety (tekstowe) {#wireframes}
 
@@ -214,22 +214,22 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 
 ```text
 +----------------------------------------------------------------------------------+
-| [Stepper — sticky]  1 Dane  |  2 Prześlij  |  3 Generuj  |  4 Skopiuj/Pobierz    |
+| [Stepper — sticky]  1 Dane artysty  |  2 Analiza utworu  |  3 Generowanie opisu  |  4 Gotowe    |
 +----------------------------------------------------------------------------------+
 | H2: Krok 1 — Dane Artysty                                                       |
 | Nazwa:  [______________________________]                                        |
 | Opis:   [ textarea (50–1000) ............................................... ] |
 |         (licznik: 0/1000)                                                      |
 |                                                                                |
-| H2: Krok 2 — Prześlij Utwór                                                    |
+| H2: Krok 2 — Analiza Utworu                                                    |
 | [Wybierz plik]   nazwa_pliku.mp3    [Zmień plik]                               |
 | (Obsługiwane: .mp3, .wav; ≤50MB)                                               |
 |                                                                                |
-| H2: Krok 3 — Generuj i Edytuj                                                  |
+| H2: Krok 3 — Generowanie Opisu                                                 |
 | [Generuj opis]     Status: Analiza audio... / Generowanie...      [Anuluj]           |
 | [ edytowalne textarea wyniku .............................................. ] |
 |                                                                                |
-| H2: Krok 4 — Skopiuj / Pobierz                                                 |
+| H2: Krok 4 — Gotowe                                                            |
 | [Kopiuj do schowka]     [Pobierz .txt]     [Reset]                             |
 +----------------------------------------------------------------------------------+
 ```
@@ -280,17 +280,17 @@ Opis poniżej stanowi źródło prawdy dla układu ekranów (tekstowo, bez plik�
 | Opis                                          |
 | [ textarea (50–1000) ]  (licznik)             |
 |                                              |
-| Krok 2 — Prześlij Utwór                       |
+| Krok 2 — Analiza Utworu                       |
 | [Wybierz plik]                                |
 | nazwa_pliku.mp3    [Zmień plik]               |
 |                                              |
-| Krok 3 — Generuj i Edytuj                     |
+| Krok 3 — Generowanie Opisu                    |
 | [Generuj opis]                                |
 | ── sticky pasek statusu + Anuluj ──────────── |
 | Status: Analiza audio...           [Anuluj]         |
 | [ textarea wyniku ]                           |
 |                                              |
-| Krok 4 — Skopiuj / Pobierz                    |
+| Krok 4 — Gotowe                               |
 | [Kopiuj]     [Pobierz .txt]     [Reset]       |
 +----------------------------------------------+
 ```

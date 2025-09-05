@@ -52,6 +52,8 @@ type Props = {
 	errors?: ArtistFormErrors;
 	// Optional content to render after the artist fields and before the submit button
 	afterFields?: React.ReactNode;
+	// Optional content to render to the right of the submit button (e.g., Generate / Reset)
+	extraActionsRight?: React.ReactNode;
 };
 
 export default function ArtistForm({
@@ -61,6 +63,7 @@ export default function ArtistForm({
 	isSubmitting,
 	errors,
 	afterFields,
+	extraActionsRight,
 }: Props) {
 	const [touched, setTouched] = React.useState<Record<string, boolean>>({});
 
@@ -208,7 +211,7 @@ export default function ArtistForm({
 
 			{afterFields}
 
-			<div className='flex justify-end'>
+			<div className='flex justify-end items-center gap-2'>
 				<button
 					type='submit'
 					disabled={isSubmitting}
@@ -219,6 +222,7 @@ export default function ArtistForm({
 						? UI_TEXT.BUTTONS.SUBMIT_LOADING
 						: UI_TEXT.BUTTONS.SUBMIT_IDLE}
 				</button>
+				{extraActionsRight}
 			</div>
 		</form>
 	);

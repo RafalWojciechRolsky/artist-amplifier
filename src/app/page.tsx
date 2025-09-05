@@ -2,13 +2,13 @@
 
 import React from 'react';
 import ArtistForm, {
-	type ArtistFormValue,
-	validateArtistForm,
+    type ArtistFormValue,
+    validateArtistForm,
 } from '@/components/ArtistForm';
 import AudioUpload from '@/components/AudioUpload';
 import TextEditor from '@/components/TextEditor';
 import ActionButtons from '@/components/ActionButtons';
-import { analyzeAudio } from '@/lib/analysis';
+import { analyzeAudio, validateAudioFile as serverValidateAudioFile } from '@/lib/analysis';
 import { generateDescription } from '@/lib/api/generate';
 import {
 	artistFormStorage,
@@ -17,26 +17,42 @@ import {
 } from '@/lib/typedSession';
 import type { AnalysisResult } from '@/lib/types/analysis';
 import { UI_TEXT } from '@/lib/constants';
+import { AnalysisStatus } from '@/components/AnalysisStatus';
+import type { AnalysisStatusType } from '@/components/AnalysisStatus';
+import { ErrorBanner } from '@/components/ErrorBanner';
+import { Stepper } from '@/components/Stepper';
 
 type AppState = {
-	status: 'idle' | 'analyzing' | 'ready' | 'generating' | 'error';
-	artistForm: ArtistFormValue;
-	audioFile: File | null;
-	audioError: string | null;
-	analysisResult: AnalysisResult | null;
-	generated: string;
-	generationError: string | null;
+    status:
+        | 'idle'
+        | 'validating'
+        | 'analyzing'
+        | 'polling'
+        | 'ready'
+        | 'generating'
+        | 'readyDescription'
+        | 'error';
+    artistForm: ArtistFormValue;
+    audioFile: File | null;
+    audioError: string | null;
+    analysisResult: AnalysisResult | null;
+    generated: string;
+    generationError: string | null;
+    jobId: string | null;
+    errorMessage: string | null;
 };
 
 type Action =
-	| { type: 'SET_FORM'; payload: ArtistFormValue }
-	| { type: 'SET_STATUS'; payload: AppState['status'] }
-	| { type: 'SET_AUDIO_FILE'; payload: File | null }
-	| { type: 'SET_AUDIO_ERROR'; payload: string | null }
-	| { type: 'SET_ANALYSIS_RESULT'; payload: AnalysisResult | null }
-	| { type: 'SET_GENERATED_DESCRIPTION'; payload: string }
-	| { type: 'SET_GENERATION_ERROR'; payload: string | null }
-	| { type: 'RESET' };
+    | { type: 'SET_FORM'; payload: ArtistFormValue }
+    | { type: 'SET_STATUS'; payload: AppState['status'] }
+    | { type: 'SET_AUDIO_FILE'; payload: File | null }
+    | { type: 'SET_AUDIO_ERROR'; payload: string | null }
+    | { type: 'SET_ANALYSIS_RESULT'; payload: AnalysisResult | null }
+    | { type: 'SET_GENERATED_DESCRIPTION'; payload: string }
+    | { type: 'SET_GENERATION_ERROR'; payload: string | null }
+    | { type: 'SET_JOB_ID'; payload: string | null }
+    | { type: 'SET_ERROR_MESSAGE'; payload: string | null }
+    | { type: 'RESET' };
 
 function reducer(state: AppState, action: Action): AppState {
 	switch (action.type) {
@@ -54,6 +70,10 @@ function reducer(state: AppState, action: Action): AppState {
 			return { ...state, generated: action.payload };
 		case 'SET_GENERATION_ERROR':
 			return { ...state, generationError: action.payload };
+		case 'SET_JOB_ID':
+			return { ...state, jobId: action.payload };
+		case 'SET_ERROR_MESSAGE':
+			return { ...state, errorMessage: action.payload };
 		case 'RESET':
 			return createInitialState();
 		default:
@@ -64,15 +84,17 @@ function reducer(state: AppState, action: Action): AppState {
 const initialForm: ArtistFormValue = { artistName: '', songTitle: '', artistDescription: '' };
 
 function createInitialState(): AppState {
-	return {
-		status: 'idle',
-		artistForm: { ...initialForm },
-		audioFile: null,
-		audioError: null,
-		analysisResult: null,
-		generated: '',
-		generationError: null,
-	};
+    return {
+        status: 'idle',
+        artistForm: { ...initialForm },
+        audioFile: null,
+        audioError: null,
+        analysisResult: null,
+        generated: '',
+        generationError: null,
+        jobId: null,
+        errorMessage: null,
+    };
 }
 
 export default function Home() {
@@ -82,7 +104,12 @@ export default function Home() {
 		Object.keys(validateArtistForm(state.artistForm)).length === 0;
 	const isAnalysisComplete = !!state.analysisResult;
 	const canGenerate =
-		state.status === 'ready' && isFormValid && isAnalysisComplete;
+        (state.status === 'ready' || state.status === 'readyDescription') && isFormValid && isAnalysisComplete;
+	const isBusy =
+        state.status === 'generating' ||
+        state.status === 'validating' ||
+        state.status === 'analyzing' ||
+        state.status === 'polling';
 
 	// Load state from session on first mount
 	React.useEffect(() => {
@@ -127,7 +154,10 @@ export default function Home() {
 		// Ten kod wykona się za każdym razem, gdy stan się zmieni.
 		// Warunek `if` zapewnia, że logujemy tylko w interesującym nas momencie.
 		if (state.status === 'ready' && state.analysisResult) {
-			console.log('[audio/analyze] full analyzed track after update ->', state);
+			// Gate debug logs behind an explicit env flag to avoid noisy test output
+			if (process.env.NEXT_PUBLIC_DEBUG_ANALYSIS === 'true') {
+				console.log('[audio/analyze] full analyzed track after update ->', state);
+			}
 		}
 	}, [state]);
 
@@ -144,16 +174,35 @@ export default function Home() {
 		}
 		// Reset previous error and persisted/visible analysis before a fresh run
 		dispatch({ type: 'SET_AUDIO_ERROR', payload: null });
+		dispatch({ type: 'SET_ERROR_MESSAGE', payload: null });
 		dispatch({ type: 'SET_ANALYSIS_RESULT', payload: null });
 		analysisResultStorage.remove();
-		dispatch({ type: 'SET_STATUS', payload: 'analyzing' });
+		// 0) Server-side validation step
+		dispatch({ type: 'SET_STATUS', payload: 'validating' });
 
 		const controller = new AbortController();
 		abortRef.current = controller;
 
 		try {
+			// Validate on server
+			const serverValidation = await serverValidateAudioFile(state.audioFile, {
+				signal: controller.signal,
+			});
+			if (!serverValidation.ok) {
+				dispatch({ type: 'SET_STATUS', payload: 'error' });
+				dispatch({ type: 'SET_ERROR_MESSAGE', payload: serverValidation.error || UI_TEXT.STATUS.ERROR });
+				dispatch({ type: 'SET_AUDIO_ERROR', payload: UI_TEXT.STATUS.ERROR });
+				return;
+			}
+
+			// Proceed to analysis
+			dispatch({ type: 'SET_STATUS', payload: 'analyzing' });
 			const result: AnalysisResult = await analyzeAudio(state.audioFile, {
 				signal: controller.signal,
+				onPollingStart: (jobId) => {
+					dispatch({ type: 'SET_JOB_ID', payload: jobId });
+					dispatch({ type: 'SET_STATUS', payload: 'polling' });
+				},
 			});
 			analysisResultStorage.set(result);
 			// const full =
@@ -169,7 +218,9 @@ export default function Home() {
 			}
 			// Surface error via status banner and near file input (for a11y/tests)
 			dispatch({ type: 'SET_STATUS', payload: 'error' });
-			// For UX consistency, show a generic error near the upload input
+			// Prefer detailed error in a global banner and a generic near the input
+			const message = err instanceof Error ? err.message : UI_TEXT.STATUS.ERROR;
+			dispatch({ type: 'SET_ERROR_MESSAGE', payload: message });
 			dispatch({ type: 'SET_AUDIO_ERROR', payload: UI_TEXT.STATUS.ERROR });
 		} finally {
 			abortRef.current = null;
@@ -181,7 +232,7 @@ export default function Home() {
 		if (!analysisResult) return;
 
 		dispatch({ type: 'SET_GENERATION_ERROR', payload: null });
-
+		dispatch({ type: 'SET_ERROR_MESSAGE', payload: null });
 		dispatch({ type: 'SET_STATUS', payload: 'generating' });
 		const controller = new AbortController();
 		abortRef.current = controller;
@@ -193,7 +244,7 @@ export default function Home() {
 				{ signal: controller.signal }
 			);
 			dispatch({ type: 'SET_GENERATED_DESCRIPTION', payload: description });
-			dispatch({ type: 'SET_STATUS', payload: 'ready' });
+			dispatch({ type: 'SET_STATUS', payload: 'readyDescription' });
 		} catch (err: unknown) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
 				// Stay ready after cancel
@@ -207,6 +258,7 @@ export default function Home() {
 					? err.message
 					: 'Wystąpił błąd podczas generowania opisu.';
 			dispatch({ type: 'SET_GENERATION_ERROR', payload: message });
+			dispatch({ type: 'SET_ERROR_MESSAGE', payload: message });
 		} finally {
 			abortRef.current = null;
 		}
@@ -238,13 +290,16 @@ export default function Home() {
 		<div className='font-sans grid grid-rows-[auto_1fr_auto] items-start justify-items-center min-h-screen p-6 gap-8 sm:p-10'>
 			<header className='w-full max-w-screen-sm'>
 				<h1 className='text-3xl font-semibold aa-heading'>Artist Amplifier</h1>
+				<div className='mt-3'>
+					<Stepper status={state.status as AnalysisStatusType} />
+				</div>
 			</header>
 			<main className='w-full'>
 				<ArtistForm
 					value={state.artistForm}
 					onChange={(next) => dispatch({ type: 'SET_FORM', payload: next })}
 					onSubmit={handleSubmit}
-					isSubmitting={state.status === 'analyzing'}
+					isSubmitting={state.status === 'analyzing' || state.status === 'validating' || state.status === 'polling' || state.status === 'generating'}
 					afterFields={
 						<div className='grid gap-2'>
 							<AudioUpload
@@ -257,7 +312,7 @@ export default function Home() {
 									dispatch({ type: 'SET_AUDIO_ERROR', payload: msg })
 								}
 							/>
-							{state.status === 'analyzing' && (
+							{(state.status === 'analyzing' || state.status === 'generating') && (
 								<div className='flex justify-end'>
 									<button
 										type='button'
@@ -269,21 +324,10 @@ export default function Home() {
 									</button>
 								</div>
 							)}
-							{/* Optional status message */}
-							{state.status !== 'idle' && (
-								<p
-									className='text-sm aa-text-secondary'
-									aria-live='polite'
-									role='status'
-									data-testid='status-banner'
-								>
-									{state.status === 'analyzing' && UI_TEXT.STATUS.ANALYZING}
-									{state.status === 'generating' &&
-										UI_TEXT.BUTTONS.GENERATE_LOADING}
-									{state.status === 'ready' && UI_TEXT.STATUS.DONE}
-									{state.status === 'error' && UI_TEXT.STATUS.ERROR}
-								</p>
-							)}
+							{/* Detailed status banner */}
+							<AnalysisStatus status={state.status as AnalysisStatusType} />
+							{/* Global error banner */}
+							{state.errorMessage && <ErrorBanner message={state.errorMessage} />}
 							{state.status === 'ready' && state.analysisResult && (
 								<div
 									className='mt-2 rounded-md border aa-border p-4 text-sm flex items-center gap-3'
@@ -323,12 +367,42 @@ export default function Home() {
 							)}
 						</div>
 					}
+					extraActionsRight={
+						<div className='flex items-center gap-2'>
+							<button
+								type='button'
+								onClick={handleGenerate}
+								disabled={!canGenerate || isBusy}
+								data-testid='generate-button'
+								className={`px-6 py-2 font-semibold rounded-lg aa-btn-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+									state.status === 'generating' ? 'aa-pulse' : ''
+								}`}
+							>
+								{state.status === 'generating'
+									? UI_TEXT.BUTTONS.GENERATE_LOADING
+									: UI_TEXT.BUTTONS.GENERATE_IDLE}
+							</button>
+							<button
+								type='button'
+								onClick={handleReset}
+								data-testid='reset-button'
+								className='px-4 py-2 rounded-lg border aa-btn-ghost'
+							>
+								{UI_TEXT.BUTTONS.RESET}
+							</button>
+						</div>
+					}
 				/>
-				{(state.status === 'ready' || state.status === 'generating') && (
+				{state.status === 'readyDescription' && (
 					<div className='w-full max-w-screen-sm mx-auto grid gap-4 mt-8'>
 						<h2 className='text-lg font-semibold aa-heading-secondary'>
 							Wygenerowany opis
 						</h2>
+						<ActionButtons
+							artistName={state.artistForm.artistName}
+							text={state.generated}
+							hideReset
+						/>
 						<TextEditor
 							value={state.generated}
 							onChange={(e) =>
@@ -340,43 +414,6 @@ export default function Home() {
 							placeholder='Tutaj pojawi się wygenerowany opis...'
 							ariaLabel='Edytor wygenerowanego opisu'
 						/>
-						<ActionButtons
-							artistName={state.artistForm.artistName}
-							text={state.generated}
-							onReset={handleReset}
-						/>
-						<div className='flex justify-end'>
-							<button
-								type='button'
-								onClick={handleGenerate}
-								disabled={!canGenerate || state.status === 'generating'}
-								data-testid='generate-button'
-								className={`px-6 py-2 font-semibold rounded-lg aa-btn-primary disabled:opacity-50 disabled:cursor-not-allowed ${
-									state.status === 'generating' ? 'aa-pulse' : ''
-								}`}
-							>
-								{state.status === 'generating'
-									? UI_TEXT.BUTTONS.GENERATE_LOADING
-									: UI_TEXT.BUTTONS.GENERATE_IDLE}
-							</button>
-						</div>
-						{state.status === 'generating' && (
-							<div className='flex justify-end'>
-								<button
-									type='button'
-									onClick={handleCancel}
-									data-testid='cancel-button'
-									className='px-4 py-2 border rounded-md aa-border text-[var(--color-text-primary)] hover:bg-[color:var(--color-surface-elev)]'
-								>
-									{UI_TEXT.BUTTONS.CANCEL}
-								</button>
-							</div>
-						)}
-						{state.generationError && (
-							<p className='text-sm text-[color:var(--color-error)]'>
-								{state.generationError}
-							</p>
-						)}
 					</div>
 				)}
 			</main>

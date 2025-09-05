@@ -108,6 +108,9 @@ test('happy path with song title', async ({ page }) => {
   const desc = page.getByLabel(/Opis artysty/i);
   const fileInput = page.getByLabel(/Plik utworu/i);
 
+  // Stepper should start on step 1
+  await expect(page.getByTestId('step-1')).toHaveAttribute('aria-current', 'step');
+
   await name.fill('Test Artist');
   await title.fill('Cosmic Echoes');
   await desc.fill('A'.repeat(60));
@@ -117,6 +120,9 @@ test('happy path with song title', async ({ page }) => {
 
   await page.getByRole('button', { name: /Analizuj utwór/i }).click();
 
+  // After starting analysis, step 2 should be current (analyzing/polling)
+  await expect(page.getByTestId('step-2')).toHaveAttribute('aria-current', 'step');
+
   // Wait for generate button to appear
   await expect(page.getByRole('button', { name: /Generuj opis/i })).toBeVisible();
   await page.getByRole('button', { name: /Generuj opis/i }).click();
@@ -124,7 +130,14 @@ test('happy path with song title', async ({ page }) => {
   // Button shows generating state and then editor contains text
   await expect(page.getByRole('button', { name: /Generowanie opisu.../i })).toBeDisabled();
 
+  // While generating, step 3 should be current
+  await expect(page.getByTestId('step-3')).toHaveAttribute('aria-current', 'step');
+
   // The textarea/editor has placeholder in PL per integration tests
   const editor = page.getByPlaceholder(/Tutaj pojawi się wygenerowany opis.../i);
   await expect(editor).toHaveValue(GEN_TEXT);
-});
+
+  // After generation completes, step 4 should be current
+  await expect(page.getByTestId('step-4')).toHaveAttribute('aria-current', 'step');
+})
+;

@@ -61,7 +61,9 @@ export const UI_TEXT = {
   },
   STATUS: {
     READY: 'Gotowe do generowania',
+    VALIDATING: 'Weryfikacja pliku...',
     ANALYZING: 'Analiza',
+    POLLING: 'Analiza w toku (przetwarzanie w tle)...',
     ERROR: 'Błąd analizy',
     DONE: 'Ukończono analizę',
   },

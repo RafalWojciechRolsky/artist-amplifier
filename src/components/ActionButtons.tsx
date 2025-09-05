@@ -7,10 +7,11 @@ import { buildDescriptionFilename, copyToClipboard, downloadTextFile } from '@/l
 interface ActionButtonsProps {
   artistName: string;
   text: string;
-  onReset: () => void;
+  onReset?: () => void;
+  hideReset?: boolean;
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ artistName, text, onReset }) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ artistName, text, onReset, hideReset }) => {
   const [copied, setCopied] = React.useState(false);
   const disabled = !text?.trim();
 
@@ -54,16 +55,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ artistName, text, onReset
           </span>
         )}
       </div>
-      <div>
-        <button
-          type="button"
-          onClick={onReset}
-          data-testid="reset-button"
-          className="px-4 py-2 rounded-lg border aa-btn-ghost"
-        >
-          {UI_TEXT.BUTTONS.RESET}
-        </button>
-      </div>
+      {!hideReset && onReset ? (
+        <div>
+          <button
+            type="button"
+            onClick={onReset}
+            data-testid="reset-button"
+            className="px-4 py-2 rounded-lg border aa-btn-ghost"
+          >
+            {UI_TEXT.BUTTONS.RESET}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 };
