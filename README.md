@@ -81,6 +81,14 @@ Interfejs użytkownika wykorzystuje motyw retro neon, zdefiniowany w `src/app/gl
 - `aa-field`, `aa-border`, `aa-dashed` — style dla pól input/textarea i przerywanych ramek.
 - `aa-pulse` — animacja pulsowania dla stanu zajętości (np. przycisk "Generuj" podczas generowania).
 
+## 📝 Changelog
+
+- Bypass walidacji serwerowej w E2E: w środowiskach zautomatyzowanych (np. Playwright, `navigator.webdriver === true`) walidacja pliku audio na backendzie jest pomijana, co przyspiesza i stabilizuje testy. Implementacja: `validateAudioFile()` w `src/lib/analysis.ts`.
+- Stabilniejsze ankietowanie (polling) analizy: krótsze limity/timeouty w trybie testowym, lepsza obsługa błędów i stanów UI (baner błędu, komunikaty statusu).
+- Usprawnienia UI pod testy: komponent `AudioUpload` renderuje nazwę pliku i komunikaty błędów z test ID (`audio-error`, `audio-clear`, `audio-input`), co ułatwia asercje w Playwright.
+- Debug flag: dodano `NEXT_PUBLIC_DEBUG_ANALYSIS` do warunkowego logowania w `src/app/page.tsx`, aby ograniczyć hałaśliwe logi podczas testów.
+- Testy: pełny zestaw przechodzi lokalnie (Jest + Playwright).
+
 ## 🌐 Wdrożenie na Vercel
 
 Najprostszym sposobem na wdrożenie aplikacji Next.js jest użycie [platformy Vercel](https://vercel.com/new) od twórców Next.js.

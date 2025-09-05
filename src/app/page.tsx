@@ -20,6 +20,7 @@ import { UI_TEXT } from '@/lib/constants';
 import { AnalysisStatus } from '@/components/AnalysisStatus';
 import type { AnalysisStatusType } from '@/components/AnalysisStatus';
 import { ErrorBanner } from '@/components/ErrorBanner';
+import { Stepper } from '@/components/Stepper';
 
 type AppState = {
     status:
@@ -153,7 +154,10 @@ export default function Home() {
 		// Ten kod wykona się za każdym razem, gdy stan się zmieni.
 		// Warunek `if` zapewnia, że logujemy tylko w interesującym nas momencie.
 		if (state.status === 'ready' && state.analysisResult) {
-			console.log('[audio/analyze] full analyzed track after update ->', state);
+			// Gate debug logs behind an explicit env flag to avoid noisy test output
+			if (process.env.NEXT_PUBLIC_DEBUG_ANALYSIS === 'true') {
+				console.log('[audio/analyze] full analyzed track after update ->', state);
+			}
 		}
 	}, [state]);
 
@@ -286,13 +290,16 @@ export default function Home() {
 		<div className='font-sans grid grid-rows-[auto_1fr_auto] items-start justify-items-center min-h-screen p-6 gap-8 sm:p-10'>
 			<header className='w-full max-w-screen-sm'>
 				<h1 className='text-3xl font-semibold aa-heading'>Artist Amplifier</h1>
+				<div className='mt-3'>
+					<Stepper status={state.status as AnalysisStatusType} />
+				</div>
 			</header>
 			<main className='w-full'>
 				<ArtistForm
 					value={state.artistForm}
 					onChange={(next) => dispatch({ type: 'SET_FORM', payload: next })}
 					onSubmit={handleSubmit}
-					isSubmitting={state.status === 'analyzing' || state.status === 'validating' || state.status === 'polling'}
+					isSubmitting={state.status === 'analyzing' || state.status === 'validating' || state.status === 'polling' || state.status === 'generating'}
 					afterFields={
 						<div className='grid gap-2'>
 							<AudioUpload
@@ -360,31 +367,8 @@ export default function Home() {
 							)}
 						</div>
 					}
-				/>
-				{(state.status === 'ready' || state.status === 'generating' || state.status === 'readyDescription') && (
-					<div className='w-full max-w-screen-sm mx-auto grid gap-4 mt-8'>
-						<h2 className='text-lg font-semibold aa-heading-secondary'>
-							Wygenerowany opis
-						</h2>
-						{state.status === 'readyDescription' && (
-							<TextEditor
-								value={state.generated}
-								onChange={(e) =>
-									dispatch({
-										type: 'SET_GENERATED_DESCRIPTION',
-										payload: e.target.value,
-									})
-								}
-								placeholder='Tutaj pojawi się wygenerowany opis...'
-								ariaLabel='Edytor wygenerowanego opisu'
-							/>
-						)}
-						<ActionButtons
-							artistName={state.artistForm.artistName}
-							text={state.generated}
-							onReset={handleReset}
-						/>
-						<div className='flex justify-end'>
+					extraActionsRight={
+						<div className='flex items-center gap-2'>
 							<button
 								type='button'
 								onClick={handleGenerate}
@@ -398,24 +382,38 @@ export default function Home() {
 									? UI_TEXT.BUTTONS.GENERATE_LOADING
 									: UI_TEXT.BUTTONS.GENERATE_IDLE}
 							</button>
+							<button
+								type='button'
+								onClick={handleReset}
+								data-testid='reset-button'
+								className='px-4 py-2 rounded-lg border aa-btn-ghost'
+							>
+								{UI_TEXT.BUTTONS.RESET}
+							</button>
 						</div>
-						{(state.status === 'generating') && (
-							<div className='flex justify-end'>
-								<button
-									type='button'
-									onClick={handleCancel}
-									data-testid='cancel-button'
-									className='px-4 py-2 border rounded-md aa-border text-[var(--color-text-primary)] hover:bg-[color:var(--color-surface-elev)]'
-								>
-									{UI_TEXT.BUTTONS.CANCEL}
-								</button>
-							</div>
-						)}
-						{state.generationError && (
-							<p className='text-sm text-[color:var(--color-error)]'>
-								{state.generationError}
-							</p>
-						)}
+					}
+				/>
+				{state.status === 'readyDescription' && (
+					<div className='w-full max-w-screen-sm mx-auto grid gap-4 mt-8'>
+						<h2 className='text-lg font-semibold aa-heading-secondary'>
+							Wygenerowany opis
+						</h2>
+						<ActionButtons
+							artistName={state.artistForm.artistName}
+							text={state.generated}
+							hideReset
+						/>
+						<TextEditor
+							value={state.generated}
+							onChange={(e) =>
+								dispatch({
+									type: 'SET_GENERATED_DESCRIPTION',
+									payload: e.target.value,
+								})
+							}
+							placeholder='Tutaj pojawi się wygenerowany opis...'
+							ariaLabel='Edytor wygenerowanego opisu'
+						/>
 					</div>
 				)}
 			</main>
