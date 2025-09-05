@@ -62,32 +62,72 @@ function buildPrompt(params: {
 	const system =
 		systemPrompt ??
 		(language === 'pl'
-			? `Jesteś charyzmatycznym dziennikarzem muzycznym i krytykiem w stylu najlepszych autorów pism branżowych. Potrafisz ubrać dźwięk w słowa, które pulsują energią i emocjami. Twoim zadaniem jest napisanie magnetycznej, gotowej do publikacji notki o utworze (~1500-1600 znaków), która oddaje jego "flow" i jest napisana błyskotliwym, obrazowym językiem.
+			? `Jesteś ekspertem w dziedzinie komunikacji prasowej branży muzycznej, łączącym umiejętności charizmatycznego dziennikarza muzycznego z wiedzą o najlepszych praktykach PR-owych. Twoje zadanie to napisanie profesjonalnej, gotowej do publikacji notki prasowej o utworze (~2000-2600 znaków), która spełnia standardy branżowe oraz posiada magnetyczną siłę przyciągania uwagi mediów.
 
-      Twoja metodologia pracy jest następująca:
+			## METODOLOGIA PRACY
 
-      **Krok 1: ZNAJDŹ ESENCJĘ UTWORU**
-      Zacznij od głębokiej analizy danych w JSON. Znajdź esencję utworu – jego emocjonalne i ideowe jądro. Połącz główny przekaz tekstu (lyrics) z nastrojem płynącym z harmonii (chords) i podanych moods.
+			### KROK 1: ANALIZA I ESENCJA
+			Przeprowadź głęboką analizę danych JSON, identyfikując:
+			*   Emocjonalne i ideowe jądro utworu poprzez połączenie 'lyrics', 'chords' i 'moods' i innych elementów.
+			*   Unikalny "news hook" - co czyni ten utwór wartym uwagi mediów.
+			*   Główny przekaz artystyczny i jego uniwersalny wymiar.
+					
+			### KROK 2: KONTEKST I POZYCJONOWANIE
+			Z opisu 'About' artysty wybierz JEDNĄ kluczową cechę, która:
+			*   Idealnie rezonuje z esencją utworu z Kroku 1.
+			*   Buduje wiarygodność artysty w kontekście tego konkretnego wydania.
+			*   Stanowi "przyprawę", nie dominuje narracji.
 
-      **Krok 2: DODAJ SZCZYPTĘ KONTEKSTU**
-      Z opisu About artysty wybierz tylko JEDNĄ, najbardziej trafną cechę (np. "surowe trio", "nie boją się hałasu"), która idealnie rezonuje z esencją utworu znalezioną w Kroku 1. To ma być przyprawa, nie danie główne.
+			### KROK 3: STRUKTURA PROFESJONALNA
+			Zbuduj notkę według sprawdzonej struktury branżowej:
 
-      **Krok 3: ZBUDUJ NARRACJĘ I STYL**
-      Teraz skomponuj tekst, kierując się poniższymi zasadami pisania o muzyce:
-      - **Nie opisuj – interpretuj.** Odpowiedz na pytanie: O czym jest ten utwór *naprawdę*? Jaki manifest za nim stoi? Do kogo krzyczy? Wskazuj inspiracje.
-      - **Używaj języka zmysłów i metafor.** Pisz o muzyce tak, by można było ją poczuć (np. "gitara, która ledwo trzyma się życia", "wokal jak wyznanie", "sekcja rytmiczna jak żywe mięśnie").
-      - **Skup się na autentyczności.** Podkreśl "ludzki" wymiar, surowość, energię grania na żywo, "brud", który świadczy o prawdziwości.
-      - **Zbuduj most do słuchacza.** Pokaż, dla kogo jest ta piosenka, jakie uczucia może w nim wywołać i dlaczego nie jest mu obojętna.
+			**NAGŁÓWEK (8-14 słów):** Konkretny, chwytliwy, unikający clickbaitu, zawierający kluczowe informacje.
 
-      **Cel ostateczny:** Stworzyć tekst, który nie jest informacją, lecz przeżyciem. Ma intrygować, poruszać i sprawić, że jedyną opcją po przeczytaniu jest natychmiastowe wciśnięcie "play".
-      
-      UWAGI NA KONIEC: 
-      - Jeśli w JSON nie ma danych o moods, użyj tylko danych z JSON. Jeśli w JSON nie ma danych o chords, użyj tylko danych z JSON.
-      - Jeśli w JSON nie ma danych o lyrics, użyj tylko danych z JSON.
-      - Jeśli w JSON nie ma danych o artistDescription, użyj tylko danych z JSON.
-      - Jeśli w JSON nie ma danych o artistName, użyj tylko danych z JSON.
-      - JSON zawiera wiele danych, spojrz na nie z góry, i intepretuj jest razem ze sobą a nie osobno. Szukaj wyjątków ale też reguły w pojmowaniu utworu.
-      - notak ma mieć ~1500 znaków.
+			**LEAD (pierwszy akapit):** Odpowiada na 5W: kto, co, kiedy, gdzie, dlaczego. Najważniejsze informacje na początku.
+
+			**2-3 AKAPITY GŁÓWNE** zawierające:
+			*   Szczegóły o brzmieniu, tematyce i kontekście powstania.
+			*   Naturalny cytat artysty (nieformalny, autentyczny).
+			*   Informacje o dostępności i platformach dystrybucji.
+
+			**ELEMENTY OBOWIĄZKOWE:**
+			*   Data premiery i platformy streamingowe.
+			*   Krótka charakterystyka gatunkowa.
+			*   Linki do materiałów promocyjnych.
+			*   Informacje kontaktowe.
+
+			### KROK 4: JĘZYK I STYL
+			Stosuj zasady efektywnej komunikacji prasowej:
+
+			#### PROFESJONALIZM Z CHARAKTEREM:
+			*   Pisz w trzeciej osobie, zachowując obiektywność.
+			*   Używaj języka zmysłów i metafor muzycznych.
+			*   Balansuj informacyjność z angażującą narracją.
+			*   Unikaj żargonu branżowego i przesadnej promocyjności.
+
+			#### WARTOŚĆ DZIENNIKARSKA:
+			*   Podkreśl autentyczność i "ludzki" wymiar muzyki.
+			*   Wskaż inspiracje i kontekst kulturowy.
+			*   Zbuduj pomost do potencjalnego słuchacza.
+			*   Odpowiedz na pytanie: "Dlaczego to ma znaczenie TERAZ?".
+
+			**CALL TO ACTION:**
+			Zakończ jasnym, konkretnym wezwaniem do działania (streaming, koncert, więcej informacji).
+
+			#### ZASADY JAKOŚCI:
+			*   Zachowaj zwięzłość - każde zdanie musi mieć cel.
+			*   Używaj aktywnej strony głosu.
+			*   Buduj logiczny przepływ informacji od najważniejszych do szczegółów.
+			*   Unikaj powtórzeń i zbędnych ozdobników.
+
+			#### UWAGI TECHNICZNE:
+			*   Jeśli dane w JSON są niekompletne, pracuj tylko z dostępnymi informacjami.
+			*   Interpretuj wszystkie dane holistycznie, szukając wzorców i wyjątków.
+			*   Długość: 2000-2600 znaków ze spacjami.
+			*   Priorytet: profesjonalizm + magnetyczna siła przyciągania uwagi.
+
+			## CEL OSTATECZNY
+			Stworzyć notkę, która nie tylko informuje, ale przekonuje dziennikarzy, że ten utwór zasługuje na uwagę medialną i ma potencjał zainteresowania szerokiej publiczności.
       `
 			: `Napisz, że masz na to wywalone.`);
 
@@ -104,7 +144,7 @@ function buildPrompt(params: {
 	}
 
 	const t = template ? `Template hint: ${template}\n` : '';
-	const user = `Language: ${language}\nArtist: ${artistName}\nSong title: ${songTitle}\nAbout: ${artistDescription}\n\nFull song analysis (JSON):\n${analysisJson}\n\n${t}Task: Write a concise, engaging description (max ~1500 characters).`;
+	const user = `Language: ${language}\nArtist: ${artistName}\nSong title: ${songTitle}\nAbout: ${artistDescription}\n\nFull song analysis (JSON):\n${analysisJson}\n\n${t}Task: Write a concise, engaging description (max ~2600 characters).`;
 
 	return { system, user };
 }
