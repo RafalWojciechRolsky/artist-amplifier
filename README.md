@@ -2,6 +2,10 @@
 
 Artist Amplifier to aplikacja internetowa zaprojektowana, aby pomóc muzykom i ich zespołom marketingowym w tworzeniu atrakcyjnych materiałów promocyjnych. Narzędzie pozwala artystom przesyłać utwory muzyczne, podawać podstawowe metadane i automatycznie generować profesjonalne notatki prasowe lub opisy promocyjne.
 
+## 📚 Dokumentacja
+
+Dokumentacja znajduje się w katalogu `docs`.
+
 ## ✨ Kluczowe funkcje
 
 - **Prosty interfejs użytkownika**: Czysta, jednostronicowa aplikacja zapewniająca intuicyjną obsługę.
