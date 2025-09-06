@@ -2,13 +2,16 @@
 
 import React from 'react';
 import ArtistForm, {
-    type ArtistFormValue,
-    validateArtistForm,
+	type ArtistFormValue,
+	validateArtistForm,
 } from '@/components/ArtistForm';
 import AudioUpload from '@/components/AudioUpload';
 import TextEditor from '@/components/TextEditor';
 import ActionButtons from '@/components/ActionButtons';
-import { analyzeAudio, validateAudioFile as serverValidateAudioFile } from '@/lib/analysis';
+import {
+	analyzeAudio,
+	validateAudioFile as serverValidateAudioFile,
+} from '@/lib/analysis';
 import { generateDescription } from '@/lib/api/generate';
 import {
 	artistFormStorage,
@@ -23,36 +26,36 @@ import { ErrorBanner } from '@/components/ErrorBanner';
 import { Stepper } from '@/components/Stepper';
 
 type AppState = {
-    status:
-        | 'idle'
-        | 'validating'
-        | 'analyzing'
-        | 'polling'
-        | 'ready'
-        | 'generating'
-        | 'readyDescription'
-        | 'error';
-    artistForm: ArtistFormValue;
-    audioFile: File | null;
-    audioError: string | null;
-    analysisResult: AnalysisResult | null;
-    generated: string;
-    generationError: string | null;
-    jobId: string | null;
-    errorMessage: string | null;
+	status:
+		| 'idle'
+		| 'validating'
+		| 'analyzing'
+		| 'polling'
+		| 'ready'
+		| 'generating'
+		| 'readyDescription'
+		| 'error';
+	artistForm: ArtistFormValue;
+	audioFile: File | null;
+	audioError: string | null;
+	analysisResult: AnalysisResult | null;
+	generated: string;
+	generationError: string | null;
+	jobId: string | null;
+	errorMessage: string | null;
 };
 
 type Action =
-    | { type: 'SET_FORM'; payload: ArtistFormValue }
-    | { type: 'SET_STATUS'; payload: AppState['status'] }
-    | { type: 'SET_AUDIO_FILE'; payload: File | null }
-    | { type: 'SET_AUDIO_ERROR'; payload: string | null }
-    | { type: 'SET_ANALYSIS_RESULT'; payload: AnalysisResult | null }
-    | { type: 'SET_GENERATED_DESCRIPTION'; payload: string }
-    | { type: 'SET_GENERATION_ERROR'; payload: string | null }
-    | { type: 'SET_JOB_ID'; payload: string | null }
-    | { type: 'SET_ERROR_MESSAGE'; payload: string | null }
-    | { type: 'RESET' };
+	| { type: 'SET_FORM'; payload: ArtistFormValue }
+	| { type: 'SET_STATUS'; payload: AppState['status'] }
+	| { type: 'SET_AUDIO_FILE'; payload: File | null }
+	| { type: 'SET_AUDIO_ERROR'; payload: string | null }
+	| { type: 'SET_ANALYSIS_RESULT'; payload: AnalysisResult | null }
+	| { type: 'SET_GENERATED_DESCRIPTION'; payload: string }
+	| { type: 'SET_GENERATION_ERROR'; payload: string | null }
+	| { type: 'SET_JOB_ID'; payload: string | null }
+	| { type: 'SET_ERROR_MESSAGE'; payload: string | null }
+	| { type: 'RESET' };
 
 function reducer(state: AppState, action: Action): AppState {
 	switch (action.type) {
@@ -81,20 +84,24 @@ function reducer(state: AppState, action: Action): AppState {
 	}
 }
 
-const initialForm: ArtistFormValue = { artistName: '', songTitle: '', artistDescription: '' };
+const initialForm: ArtistFormValue = {
+	artistName: '',
+	songTitle: '',
+	artistDescription: '',
+};
 
 function createInitialState(): AppState {
-    return {
-        status: 'idle',
-        artistForm: { ...initialForm },
-        audioFile: null,
-        audioError: null,
-        analysisResult: null,
-        generated: '',
-        generationError: null,
-        jobId: null,
-        errorMessage: null,
-    };
+	return {
+		status: 'idle',
+		artistForm: { ...initialForm },
+		audioFile: null,
+		audioError: null,
+		analysisResult: null,
+		generated: '',
+		generationError: null,
+		jobId: null,
+		errorMessage: null,
+	};
 }
 
 export default function Home() {
@@ -104,12 +111,16 @@ export default function Home() {
 		Object.keys(validateArtistForm(state.artistForm)).length === 0;
 	const isAnalysisComplete = !!state.analysisResult;
 	const canGenerate =
-        (state.status === 'ready' || state.status === 'readyDescription') && isFormValid && isAnalysisComplete;
+		(state.status === 'ready' || state.status === 'readyDescription') &&
+		isFormValid &&
+		isAnalysisComplete;
 	const isBusy =
-        state.status === 'generating' ||
-        state.status === 'validating' ||
-        state.status === 'analyzing' ||
-        state.status === 'polling';
+		state.status === 'generating' ||
+		state.status === 'validating' ||
+		state.status === 'analyzing' ||
+		state.status === 'polling';
+
+	const thisWillFailTheLinter = 123;
 
 	// Load state from session on first mount
 	React.useEffect(() => {
@@ -156,7 +167,10 @@ export default function Home() {
 		if (state.status === 'ready' && state.analysisResult) {
 			// Gate debug logs behind an explicit env flag to avoid noisy test output
 			if (process.env.NEXT_PUBLIC_DEBUG_ANALYSIS === 'true') {
-				console.log('[audio/analyze] full analyzed track after update ->', state);
+				console.log(
+					'[audio/analyze] full analyzed track after update ->',
+					state
+				);
 			}
 		}
 	}, [state]);
@@ -190,7 +204,10 @@ export default function Home() {
 			});
 			if (!serverValidation.ok) {
 				dispatch({ type: 'SET_STATUS', payload: 'error' });
-				dispatch({ type: 'SET_ERROR_MESSAGE', payload: serverValidation.error || UI_TEXT.STATUS.ERROR });
+				dispatch({
+					type: 'SET_ERROR_MESSAGE',
+					payload: serverValidation.error || UI_TEXT.STATUS.ERROR,
+				});
 				dispatch({ type: 'SET_AUDIO_ERROR', payload: UI_TEXT.STATUS.ERROR });
 				return;
 			}
@@ -299,7 +316,12 @@ export default function Home() {
 					value={state.artistForm}
 					onChange={(next) => dispatch({ type: 'SET_FORM', payload: next })}
 					onSubmit={handleSubmit}
-					isSubmitting={state.status === 'analyzing' || state.status === 'validating' || state.status === 'polling' || state.status === 'generating'}
+					isSubmitting={
+						state.status === 'analyzing' ||
+						state.status === 'validating' ||
+						state.status === 'polling' ||
+						state.status === 'generating'
+					}
 					afterFields={
 						<div className='grid gap-2'>
 							<AudioUpload
@@ -312,7 +334,8 @@ export default function Home() {
 									dispatch({ type: 'SET_AUDIO_ERROR', payload: msg })
 								}
 							/>
-							{(state.status === 'analyzing' || state.status === 'generating') && (
+							{(state.status === 'analyzing' ||
+								state.status === 'generating') && (
 								<div className='flex justify-end'>
 									<button
 										type='button'
@@ -327,7 +350,9 @@ export default function Home() {
 							{/* Detailed status banner */}
 							<AnalysisStatus status={state.status as AnalysisStatusType} />
 							{/* Global error banner */}
-							{state.errorMessage && <ErrorBanner message={state.errorMessage} />}
+							{state.errorMessage && (
+								<ErrorBanner message={state.errorMessage} />
+							)}
 							{state.status === 'ready' && state.analysisResult && (
 								<div
 									className='mt-2 rounded-md border aa-border p-4 text-sm flex items-center gap-3'
