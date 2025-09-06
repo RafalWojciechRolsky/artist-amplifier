@@ -120,7 +120,7 @@ export default function Home() {
 		state.status === 'analyzing' ||
 		state.status === 'polling';
 
-	const thisWillFailTheLinter = 123;
+	const thisWillFailTheLinter: dddd = 123;
 
 	// Load state from session on first mount
 	React.useEffect(() => {
