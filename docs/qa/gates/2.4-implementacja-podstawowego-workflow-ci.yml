@@ -1,0 +1,20 @@
+schema: 1
+story: "2.4"
+story_title: "Implementacja podstawowego workflow CI"
+gate: "FAIL"
+status_reason: "The CI workflow has not been verified on a live pull request, which is a critical part of the acceptance criteria. An `npm audit` step was also missing and has been added."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-09-06T12:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "AC-002"
+    severity: high
+    finding: "Acceptance Criteria 2 is not met. The CI workflow must be verified on a test pull request to ensure it triggers, passes, and blocks failures correctly."
+    suggested_action: "Developer to create a test pull request and provide evidence of the CI workflow's successful execution and failure-blocking capabilities."
+  - id: "SEC-001"
+    severity: medium
+    finding: "The CI workflow was missing a dependency security audit step."
+    suggested_action: "This was addressed by adding `npm audit --audit-level=high` to the workflow. No further action is required for this issue."
+
